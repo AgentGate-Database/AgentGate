@@ -53,6 +53,12 @@ public:
                                        const nlohmann::json &body,
                                        const std::string &idempotency_key,
                                        const std::string &request_digest) const;
+  [[nodiscard]] DbResult revert(const std::string &principal_id, const std::string &pr_id,
+                                const nlohmann::json &body, const std::string &idempotency_key,
+                                const std::string &request_digest) const;
+  [[nodiscard]] nlohmann::json register_webhook(const std::string &principal_id,
+                                                const nlohmann::json &body) const;
+  [[nodiscard]] nlohmann::json list_webhooks(const std::string &principal_id) const;
   [[nodiscard]] nlohmann::json get_pr(const std::string &principal_id,
                                       const std::string &pr_id) const;
   [[nodiscard]] nlohmann::json get_diff(const std::string &principal_id,
@@ -84,6 +90,8 @@ struct AppContext {
   nlohmann::json review_schema;
   nlohmann::json reject_schema;
   nlohmann::json merge_schema;
+  nlohmann::json revert_schema;
+  nlohmann::json webhook_schema;
 };
 
 [[nodiscard]] AppContext &app_context();

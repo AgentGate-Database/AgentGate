@@ -2,6 +2,7 @@
 
 #include <openssl/crypto.h>
 #include <openssl/evp.h>
+#include <openssl/hmac.h>
 #include <openssl/rand.h>
 
 #include <stdexcept>
@@ -67,9 +68,30 @@ std::array<unsigned char, 32> sha256_bytes(std::string_view data) {
   return out;
 }
 
+std::string hmac_sha256_hex(std::string_view key, std::string_view message) {
+  unsigned char raw[EVP_MAX_MD_SIZE];
+  unsigned int length = 0;
+  const auto *signed_bytes =
+      HMAC(EVP_sha256(), key.data(), static_cast<int>(key.size()),
+           reinterpret_cast<const unsigned char *>(message.data()), message.size(), raw, &length);
+  if (signed_bytes == nullptr || length != 32) {
+    throw std::runtime_error("HMAC-SHA256 failed");
+  }
+  return to_hex(raw, length);
+}
+
 bool constant_time_equal(const unsigned char *left, const unsigned char *right,
                          std::size_t length) {
   return CRYPTO_memcmp(left, right, length) == 0;
+}
+
+std::string random_bytes(std::size_t count) {
+  std::string raw(count, '\0');
+  if (count > 0 &&
+      RAND_bytes(reinterpret_cast<unsigned char *>(raw.data()), static_cast<int>(count)) != 1) {
+    throw std::runtime_error("RAND_bytes failed");
+  }
+  return raw;
 }
 
 std::string random_token_secret(std::size_t raw_bytes) {

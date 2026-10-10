@@ -19,6 +19,8 @@ struct ParsedCredential {
 
 [[nodiscard]] std::array<unsigned char, 32> sha256_bytes(std::string_view data);
 
+[[nodiscard]] std::string hmac_sha256_hex(std::string_view key, std::string_view message);
+
 [[nodiscard]] bool constant_time_equal(const unsigned char *left, const unsigned char *right,
                                        std::size_t length);
 
@@ -26,5 +28,6 @@ struct ParsedCredential {
 [[nodiscard]] bool decode_hex(std::string_view hex, unsigned char *out, std::size_t out_len);
 
 [[nodiscard]] std::string random_token_secret(std::size_t raw_bytes = 32);
+[[nodiscard]] std::string random_bytes(std::size_t count);
 
 } // namespace agentgate

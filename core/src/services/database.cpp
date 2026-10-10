@@ -3,6 +3,7 @@
 #include "agentgate/crypto.hpp"
 #include "agentgate/db/transaction.hpp"
 #include "agentgate/error.hpp"
+#include "agentgate/webhook.hpp"
 
 #include <optional>
 
@@ -152,6 +153,41 @@ DbResult Database::create_revision(const std::string &principal_id, const std::s
     }
     throw;
   }
+}
+
+DbResult Database::revert(const std::string &principal_id, const std::string &pr_id,
+                          const nlohmann::json &body, const std::string &idempotency_key,
+                          const std::string &request_digest) const {
+  try {
+    const auto wrapper = call_json(
+        "SELECT agentgate.revert_pr($1::uuid, $2::uuid, $3::jsonb, $4::text, $5::text, "
+        "$6::int, $7::int, $8::int)",
+        pqxx::params{principal_id, pr_id, body.dump(), idempotency_key, request_digest,
+                     config_.max_pr_rows, config_.min_expiry_seconds, config_.max_expiry_seconds});
+    return unwrap_mutation(wrapper);
+  } catch (const AgentGateError &error) {
+    if (error.code == ErrorCode::PolicyBlocked) {
+      note_policy_block(principal_id, error);
+    }
+    throw;
+  }
+}
+
+nlohmann::json Database::register_webhook(const std::string &principal_id,
+                                          const nlohmann::json &body) const {
+  const auto url = body.at("url").get<std::string>();
+  validate_webhook_url(url, config_.webhook_allow_private);
+  const auto secret = random_bytes(32);
+  const auto hex = to_hex(reinterpret_cast<const unsigned char *>(secret.data()), secret.size());
+  auto stored = call_json("SELECT agentgate.register_webhook($1::uuid, $2::text, $3::jsonb, "
+                          "decode($4, 'hex'))",
+                          pqxx::params{principal_id, url, body.at("events").dump(), hex});
+  stored["secret"] = "whsec_" + hex;
+  return stored;
+}
+
+nlohmann::json Database::list_webhooks(const std::string &principal_id) const {
+  return call_json("SELECT agentgate.list_webhooks($1::uuid)", pqxx::params{principal_id});
 }
 
 DbResult Database::approve(const std::string &principal_id, const std::string &pr_id,

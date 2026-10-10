@@ -2,6 +2,7 @@ add_library(agentgate_core
   src/config.cpp
   src/error.cpp
   src/crypto.cpp
+  src/webhook.cpp
   src/schema.cpp
   src/db/pool.cpp
   src/db/transaction.cpp

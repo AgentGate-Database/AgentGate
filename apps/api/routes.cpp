@@ -187,6 +187,57 @@ void post_merge(const drogon::HttpRequestPtr &request,
   });
 }
 
+void post_revert(const drogon::HttpRequestPtr &request,
+                 std::function<void(const drogon::HttpResponsePtr &)> &&callback,
+                 const std::string &pr_id) {
+  if (auto rejected = reject_missing_bearer(request)) {
+    callback(*rejected);
+    return;
+  }
+  if (auto rejected = reject_missing_idempotency(request)) {
+    callback(*rejected);
+    return;
+  }
+  const auto token = bearer_token(request);
+  const auto key = header_value(request, "idempotency-key");
+  const auto raw = std::string(request->body());
+  const auto digest = digest_hex(raw);
+  on_worker(std::move(callback), [token, key, raw, digest, pr_id] {
+    const auto body = parse_body(raw, app_context().revert_schema);
+    const auto principal = authenticated_principal(token);
+    const auto result = app_context().database->revert(principal, pr_id, body, key, digest);
+    return json_response(result.http_status, result.body);
+  });
+}
+
+void post_webhook(const drogon::HttpRequestPtr &request,
+                  std::function<void(const drogon::HttpResponsePtr &)> &&callback) {
+  if (auto rejected = reject_missing_bearer(request)) {
+    callback(*rejected);
+    return;
+  }
+  const auto token = bearer_token(request);
+  const auto raw = std::string(request->body());
+  on_worker(std::move(callback), [token, raw] {
+    const auto body = parse_body(raw, app_context().webhook_schema);
+    const auto principal = authenticated_principal(token);
+    return json_response(201, app_context().database->register_webhook(principal, body));
+  });
+}
+
+void get_webhooks(const drogon::HttpRequestPtr &request,
+                  std::function<void(const drogon::HttpResponsePtr &)> &&callback) {
+  if (auto rejected = reject_missing_bearer(request)) {
+    callback(*rejected);
+    return;
+  }
+  const auto token = bearer_token(request);
+  on_worker(std::move(callback), [token] {
+    const auto principal = authenticated_principal(token);
+    return json_response(200, app_context().database->list_webhooks(principal));
+  });
+}
+
 void get_one(const drogon::HttpRequestPtr &request,
              std::function<void(const drogon::HttpResponsePtr &)> &&callback,
              const std::string &pr_id, bool diff) {
@@ -268,6 +319,9 @@ void register_routes() {
          const std::string &pr_id) { post_decision(request, std::move(callback), pr_id, true); },
       {Post});
   drogon::app().registerHandler("/v1/prs/{1}/merge", &post_merge, {Post});
+  drogon::app().registerHandler("/v1/prs/{1}/revert", &post_revert, {Post});
+  drogon::app().registerHandler("/v1/webhooks", &post_webhook, {Post});
+  drogon::app().registerHandler("/v1/webhooks", &get_webhooks, {Get});
   drogon::app().registerHandler(
       "/v1/prs/{1}/reject",
       [](const drogon::HttpRequestPtr &request,

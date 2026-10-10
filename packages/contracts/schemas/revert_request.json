@@ -1,0 +1,11 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["title", "reason", "expires_in_seconds"],
+  "properties": {
+    "title": {"type": "string", "minLength": 1, "maxLength": 200},
+    "reason": {"type": "string", "minLength": 1, "maxLength": 4000},
+    "expires_in_seconds": {"type": "integer", "minimum": 1, "maximum": 604800}
+  }
+}

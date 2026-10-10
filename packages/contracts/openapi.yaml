@@ -4,7 +4,7 @@ info:
   version: 0.1.0
   description: |
     Postgres pull requests for AI agents. This document covers tracked reads,
-    proposal, review, and queued merge. Webhooks are a later milestone.
+    proposal, review, queued merge, receipt-based revert, and webhooks.
     Numeric and bigint values cross the API as strings so they do not lose precision.
 servers:
   - url: http://127.0.0.1:8080
@@ -33,6 +33,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadResponse'
+  /v1/webhooks:
+    post:
+      summary: Register a webhook destination
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookRequest'
+            example:
+              url: https://example.com/hooks/agentgate
+              events: [pr.merged, pr.conflicted]
+      responses:
+        '201':
+          description: Destination stored and secret returned once
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookCreated'
+    get:
+      summary: List webhook destinations without secrets
+      responses:
+        '200':
+          description: Registered destinations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookList'
   /v1/prs:
     post:
       summary: Create an update proposal
@@ -193,6 +221,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReviewResponse'
+  /v1/prs/{id}/revert:
+    post:
+      summary: Propose a reverse of a merged receipt
+      parameters:
+        - $ref: '#/components/parameters/PrId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RevertRequest'
+            example:
+              title: Revert invoice payment terms
+              reason: Restore the terms captured by the merge receipt.
+              expires_in_seconds: 3600
+      responses:
+        '201':
+          description: Reverse proposal stored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrResponse'
+        '409':
+          $ref: '#/components/responses/Error'
+        '422':
+          $ref: '#/components/responses/Error'
   /v1/prs/{id}/merge:
     post:
       summary: Queue an approved revision for atomic merge
@@ -294,6 +349,18 @@ components:
     MergeResponse:
       type: object
       required: [pr_id, revision, content_hash, state, job_id, receipt]
+    RevertRequest:
+      type: object
+      required: [title, reason, expires_in_seconds]
+    WebhookRequest:
+      type: object
+      required: [url, events]
+    WebhookCreated:
+      type: object
+      required: [id, url, events, secret]
+    WebhookList:
+      type: object
+      required: [webhooks]
     Error:
       type: object
       required: [error]

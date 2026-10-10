@@ -29,6 +29,7 @@ struct Config {
   int max_expiry_seconds{604800};
   int min_expiry_seconds{1};
   std::chrono::seconds expire_interval{2};
+  bool webhook_allow_private{false};
 };
 
 // Loads process configuration. database_url_variable selects which env var is

@@ -75,6 +75,7 @@ Config load_config(const char *database_url_variable) {
   config.min_expiry_seconds = env_int("AGENTGATE_MIN_EXPIRY_SECONDS", config.min_expiry_seconds);
   config.expire_interval = std::chrono::seconds{env_int(
       "AGENTGATE_EXPIRE_INTERVAL_SECONDS", static_cast<int>(config.expire_interval.count()))};
+  config.webhook_allow_private = env_or_empty("AGENTGATE_WEBHOOK_ALLOW_PRIVATE") == "1";
   if (config.pool_size == 0 || config.work_threads == 0) {
     throw AgentGateError{ErrorCode::ValidationFailed, 500,
                          "pool and work thread counts must be positive"};

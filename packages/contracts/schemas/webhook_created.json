@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "url", "events", "secret"],
+  "properties": {
+    "id": {"type": "string"},
+    "url": {"type": "string"},
+    "events": {"type": "array", "items": {"type": "string"}},
+    "secret": {"type": "string", "pattern": "^whsec_[0-9a-f]{64}$"}
+  }
+}

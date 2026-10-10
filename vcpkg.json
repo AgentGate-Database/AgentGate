@@ -9,6 +9,7 @@
     "nlohmann-json",
     "json-schema-validator",
     "openssl",
+    "curl",
     "catch2"
   ]
 }

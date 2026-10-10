@@ -189,6 +189,22 @@ async function handle(request, response) {
     send(response, result.status, result.body);
     return;
   }
+  if (request.method === "POST" && url.pathname === "/api/revert") {
+    const result = await api("POST", `/v1/prs/${current.pr_id}/revert`, proposerToken, {
+      title: "Revert invoice payment terms",
+      reason: "Restore the payment terms captured by the merge receipt.",
+      expires_in_seconds: 3600,
+    });
+    if (result.status === 201 && result.body) {
+      current = {
+        pr_id: result.body.pr_id,
+        revision: result.body.revision,
+        content_hash: result.body.content_hash,
+      };
+    }
+    send(response, result.status, result.body);
+    return;
+  }
   send(response, 404, { error: { code: "NOT_FOUND", message: "not found" } });
 }
 

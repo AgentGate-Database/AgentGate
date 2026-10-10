@@ -21,7 +21,7 @@
 <body>
   <header>
     <h1>AgentGate</h1>
-    <p class="lead">An approved proposal is queued. The invoice changes only after the worker commits a receipt.</p>
+    <p class="lead">An approved proposal is queued. The invoice changes only after the worker commits a receipt. A reverse proposal restores the earlier terms only after its own receipt, and the revision increases.</p>
   </header>
   <main>
     <section>
@@ -39,6 +39,7 @@
       <h2>Company review</h2>
       <button id="approve" type="button">Approve</button>
       <button id="merge" type="button">Merge</button>
+      <button id="revert" type="button">Propose revert</button>
       <pre id="review">Waiting for a submission.</pre>
     </section>
     <section>
@@ -117,6 +118,18 @@
       const body = await post("/api/approve");
       show(review, { decision: body.decision, state: body.state, wrote_business_row: false });
       show(status, body);
+      await refreshBusiness();
+    });
+    document.querySelector("#revert").addEventListener("click", async () => {
+      const body = await post("/api/revert");
+      show(intent, {
+        pr_id: body.pr_id,
+        source_pr_id: body.source_pr_id,
+        state: body.state,
+        diff: body.diff,
+      });
+      show(status, describe(body));
+      show(review, "Reverse proposal is waiting for approval.");
       await refreshBusiness();
     });
     document.querySelector("#merge").addEventListener("click", async () => {

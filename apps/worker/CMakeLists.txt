@@ -1,3 +1,3 @@
 add_executable(agentgate-worker main.cpp)
-target_link_libraries(agentgate-worker PRIVATE agentgate_core)
+target_link_libraries(agentgate-worker PRIVATE agentgate_core CURL::libcurl)
 agentgate_set_warnings(agentgate-worker)

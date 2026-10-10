@@ -31,6 +31,10 @@ int main() {
     ctx.reject_schema =
         agentgate::load_contract_schema(config.contracts_dir, "reject_request.json");
     ctx.merge_schema = agentgate::load_contract_schema(config.contracts_dir, "merge_request.json");
+    ctx.revert_schema =
+        agentgate::load_contract_schema(config.contracts_dir, "revert_request.json");
+    ctx.webhook_schema =
+        agentgate::load_contract_schema(config.contracts_dir, "webhook_request.json");
 
     agentgate::register_routes();
     const auto body_limit = static_cast<std::size_t>(std::max(config.max_payload_bytes, 1)) + 4096;

@@ -19,3 +19,4 @@ endif()
 
 find_package(Drogon CONFIG REQUIRED)
 find_package(Catch2 3 CONFIG REQUIRED)
+find_package(CURL REQUIRED)

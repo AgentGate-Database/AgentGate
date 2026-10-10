@@ -23,6 +23,10 @@ TEST_CASE("contract examples validate and the validator rejects bad input", "[un
       {"review_response.json", "review_response.json"},
       {"merge_request.json", "merge_request.json"},
       {"merge_response.json", "merge_response.json"},
+      {"revert_request.json", "revert_request.json"},
+      {"webhook_request.json", "webhook_request.json"},
+      {"webhook_created.json", "webhook_created.json"},
+      {"webhook_list.json", "webhook_list.json"},
   };
   for (const auto &[schema_name, example_name] : pairs) {
     INFO(example_name);

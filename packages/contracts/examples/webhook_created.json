@@ -1,0 +1,6 @@
+{
+  "id": "66666666-6666-4666-8666-666666666666",
+  "url": "https://example.com/hooks/agentgate",
+  "events": ["pr.conflicted", "pr.merged"],
+  "secret": "whsec_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+}

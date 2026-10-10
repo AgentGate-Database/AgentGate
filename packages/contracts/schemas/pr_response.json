@@ -5,7 +5,7 @@
   "required": [
     "pr_id", "title", "reason", "task_id", "proposer_id", "state", "revision",
     "content_hash", "policy_decision", "policy_version", "expires_at", "created_at",
-    "approvals", "execution_status"
+    "approvals", "execution_status", "source_pr_id"
   ],
   "properties": {
     "pr_id": {"type": "string"},
@@ -53,6 +53,7 @@
         }
       ]
     },
-    "diff": {"type": "object"}
+    "diff": {"type": "object"},
+    "source_pr_id": {"type": ["string", "null"]}
   }
 }
