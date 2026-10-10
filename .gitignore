@@ -1,0 +1,10 @@
+build/
+cmake-build-*/
+vcpkg_installed/
+.env
+.DS_Store
+*.user
+compile_commands.json
+/tmp/
+node_modules/
+*.log

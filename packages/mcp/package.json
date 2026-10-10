@@ -1,0 +1,9 @@
+{
+  "name": "@agentgate/mcp",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Thin AgentGate MCP adapter scaffold. It will call the C++ HTTP API with the caller's credential and will not open a database connection.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts"
+}

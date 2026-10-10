@@ -1,0 +1,105 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "dev-debug",
+      "displayName": "Debug (vcpkg)",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+      }
+    },
+    {
+      "name": "dev-release",
+      "displayName": "Release (vcpkg)",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+      }
+    },
+    {
+      "name": "brew-debug",
+      "displayName": "Debug (Homebrew)",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_PREFIX_PATH": "/opt/homebrew;/opt/homebrew/opt/libpq"
+      }
+    },
+    {
+      "name": "asan-ubsan",
+      "displayName": "ASan and UBSan (Homebrew)",
+      "inherits": "brew-debug",
+      "cacheVariables": {
+        "AGENTGATE_SANITIZERS": "ON"
+      }
+    },
+    {
+      "name": "ci-linux",
+      "displayName": "CI Linux (vcpkg)",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+      }
+    },
+    {
+      "name": "ci-asan",
+      "displayName": "ASan and UBSan (Linux vcpkg)",
+      "inherits": "ci-linux",
+      "cacheVariables": {
+        "AGENTGATE_SANITIZERS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {"name": "dev-debug", "configurePreset": "dev-debug"},
+    {"name": "dev-release", "configurePreset": "dev-release"},
+    {"name": "brew-debug", "configurePreset": "brew-debug"},
+    {"name": "asan-ubsan", "configurePreset": "asan-ubsan"},
+    {"name": "ci-linux", "configurePreset": "ci-linux"},
+    {"name": "ci-asan", "configurePreset": "ci-asan"}
+  ],
+  "testPresets": [
+    {
+      "name": "brew-debug",
+      "configurePreset": "brew-debug",
+      "output": {"outputOnFailure": true},
+      "environment": {
+        "AGENTGATE_TEST_DATABASE_URL": "postgresql://postgres:postgres@127.0.0.1:5432/agentgate",
+        "AGENTGATE_TEST_API_DATABASE_URL": "postgresql://agentgate_api:local-dev-api-password@127.0.0.1:5432/agentgate",
+        "AGENTGATE_TEST_WORKER_DATABASE_URL": "postgresql://agentgate_worker:local-dev-worker-password@127.0.0.1:5432/agentgate",
+        "AGENTGATE_TEST_MIGRATOR_DATABASE_URL": "postgresql://agentgate_migrator:local-dev-migrator-password@127.0.0.1:5432/agentgate",
+        "AGENTGATE_TEST_HTTP_PORT": "18080"
+      }
+    },
+    {
+      "name": "ci-linux",
+      "configurePreset": "ci-linux",
+      "output": {"outputOnFailure": true},
+      "environment": {
+        "AGENTGATE_TEST_DATABASE_URL": "postgresql://postgres:postgres@127.0.0.1:5432/agentgate",
+        "AGENTGATE_TEST_API_DATABASE_URL": "postgresql://agentgate_api:local-dev-api-password@127.0.0.1:5432/agentgate",
+        "AGENTGATE_TEST_WORKER_DATABASE_URL": "postgresql://agentgate_worker:local-dev-worker-password@127.0.0.1:5432/agentgate",
+        "AGENTGATE_TEST_MIGRATOR_DATABASE_URL": "postgresql://agentgate_migrator:local-dev-migrator-password@127.0.0.1:5432/agentgate",
+        "AGENTGATE_TEST_HTTP_PORT": "18080"
+      }
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "pr_id", "title", "reason", "task_id", "proposer_id", "state", "revision",
+    "content_hash", "policy_decision", "policy_version", "expires_at", "created_at",
+    "approvals", "execution_status"
+  ],
+  "properties": {
+    "pr_id": {"type": "string"},
+    "title": {"type": "string"},
+    "reason": {"type": "string"},
+    "task_id": {"type": ["string", "null"]},
+    "proposer_id": {"type": "string"},
+    "state": {"type": "string"},
+    "revision": {"type": "integer"},
+    "content_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "policy_decision": {"type": "string"},
+    "policy_version": {"type": "integer"},
+    "expires_at": {"type": "string"},
+    "created_at": {"type": "string"},
+    "approvals": {"type": "array"},
+    "execution_status": {"type": "null"},
+    "diff": {"type": "object"}
+  }
+}

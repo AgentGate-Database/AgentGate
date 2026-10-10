@@ -1,0 +1,99 @@
+name: agentgate
+
+services:
+  db:
+    image: ${POSTGRES_IMAGE:-postgres:17}
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-agentgate}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-agentgate}"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - agentgate-db:/var/lib/postgresql/data
+
+  migrate:
+    image: ${POSTGRES_IMAGE:-postgres:17}
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGUSER: ${POSTGRES_USER:-postgres}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      PGDATABASE: ${POSTGRES_DB:-agentgate}
+      AGENTGATE_API_PASSWORD: ${AGENTGATE_API_PASSWORD:-local-dev-api-password}
+      AGENTGATE_WORKER_PASSWORD: ${AGENTGATE_WORKER_PASSWORD:-local-dev-worker-password}
+      AGENTGATE_MIGRATOR_PASSWORD: ${AGENTGATE_MIGRATOR_PASSWORD:-local-dev-migrator-password}
+      AGENTGATE_SEED: ${AGENTGATE_SEED:-true}
+    volumes:
+      - ./packages/db:/db:ro
+    entrypoint: ["/bin/bash", "/db/migrate.sh"]
+    restart: "no"
+
+  api:
+    image: agentgate:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      AGENTGATE_HTTP_HOST: 0.0.0.0
+      AGENTGATE_HTTP_PORT: "8080"
+      AGENTGATE_DATABASE_URL: postgresql://agentgate_api:${AGENTGATE_API_PASSWORD:-local-dev-api-password}@db:5432/agentgate
+      AGENTGATE_CONTRACTS_DIR: /app/contracts
+      AGENTGATE_POOL_SIZE: "8"
+    ports:
+      - "127.0.0.1:${AGENTGATE_HTTP_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  worker:
+    image: agentgate:local
+    entrypoint: ["agentgate-worker"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      AGENTGATE_WORKER_DATABASE_URL: postgresql://agentgate_worker:${AGENTGATE_WORKER_PASSWORD:-local-dev-worker-password}@db:5432/agentgate
+      AGENTGATE_EXPIRE_INTERVAL_SECONDS: "2"
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/agentgate-worker-ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  pooler:
+    image: edoburu/pgbouncer:v1.24.1-p1
+    profiles: ["pooler"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-agentgate}
+      POOL_MODE: transaction
+      AUTH_TYPE: plain
+      MAX_CLIENT_CONN: "100"
+      DEFAULT_POOL_SIZE: "20"
+      ADMIN_USERS: postgres
+      AUTH_FILE: /etc/pgbouncer/userlist.txt
+    volumes:
+      - ./docker/pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    ports:
+      - "127.0.0.1:${POOLER_PORT:-6432}:5432"
+
+volumes:
+  agentgate-db:

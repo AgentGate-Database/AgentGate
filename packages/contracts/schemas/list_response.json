@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["items", "next_cursor"],
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["pr_id", "state", "revision", "content_hash"],
+        "properties": {
+          "pr_id": {"type": "string"},
+          "title": {"type": "string"},
+          "state": {"type": "string"},
+          "proposer_id": {"type": "string"},
+          "revision": {"type": "integer"},
+          "content_hash": {"type": "string"},
+          "policy_decision": {"type": "string"},
+          "created_at": {"type": "string"},
+          "expires_at": {"type": "string"}
+        }
+      }
+    },
+    "next_cursor": {"type": ["string", "null"]}
+  }
+}

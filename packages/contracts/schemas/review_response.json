@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["pr_id", "revision", "content_hash", "state", "decision"],
+  "properties": {
+    "pr_id": {"type": "string"},
+    "revision": {"type": "integer"},
+    "content_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "state": {"type": "string"},
+    "decision": {"type": "string", "enum": ["approved", "rejected"]}
+  }
+}

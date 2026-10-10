@@ -1,0 +1,241 @@
+openapi: 3.0.3
+info:
+  title: AgentGate API
+  version: 0.1.0
+  description: |
+    Postgres pull requests for AI agents. This document covers the proposal and
+    manual review routes. Merge, reads, and webhooks are later milestones.
+    Numeric and bigint values cross the API as strings so they do not lose precision.
+servers:
+  - url: http://127.0.0.1:8080
+paths:
+  /v1/prs:
+    post:
+      summary: Create an update proposal
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProposeRequest'
+            example:
+              title: Correct invoice payment terms
+              reason: Invoice terms differ from the signed purchase order.
+              task_id: task_123
+              expires_in_seconds: 3600
+              changes:
+                - operation: update
+                  schema: public
+                  table: invoices
+                  key:
+                    id: "482"
+                  expected_revision: "12"
+                  set:
+                    payment_terms: net_30
+      responses:
+        '201':
+          description: Proposal stored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrResponse'
+        '401':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '422':
+          $ref: '#/components/responses/Error'
+    get:
+      summary: List visible PRs
+      parameters:
+        - in: query
+          name: status
+          schema: {type: string}
+        - in: query
+          name: schema
+          schema: {type: string}
+        - in: query
+          name: table
+          schema: {type: string}
+        - in: query
+          name: proposer
+          schema: {type: string, format: uuid}
+        - in: query
+          name: created_after
+          schema: {type: string, format: date-time}
+        - in: query
+          name: created_before
+          schema: {type: string, format: date-time}
+        - in: query
+          name: cursor
+          schema: {type: string}
+        - in: query
+          name: limit
+          schema: {type: integer, minimum: 1, maximum: 100}
+      responses:
+        '200':
+          description: Page of PRs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListResponse'
+  /v1/prs/{id}:
+    get:
+      summary: Fetch PR metadata
+      parameters:
+        - $ref: '#/components/parameters/PrId'
+      responses:
+        '200':
+          description: PR
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrResponse'
+        '404':
+          $ref: '#/components/responses/Error'
+  /v1/prs/{id}/diff:
+    get:
+      summary: Fetch an authorized diff
+      parameters:
+        - $ref: '#/components/parameters/PrId'
+      responses:
+        '200':
+          description: Diff
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiffResponse'
+        '404':
+          $ref: '#/components/responses/Error'
+  /v1/prs/{id}/revisions:
+    post:
+      summary: Store a new immutable revision and invalidate prior approvals
+      parameters:
+        - $ref: '#/components/parameters/PrId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProposeRequest'
+      responses:
+        '201':
+          description: New revision
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrResponse'
+  /v1/prs/{id}/approve:
+    post:
+      summary: Approve the active revision and hash
+      parameters:
+        - $ref: '#/components/parameters/PrId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewRequest'
+            example:
+              revision: 1
+              content_hash: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      responses:
+        '200':
+          description: Approved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResponse'
+  /v1/prs/{id}/reject:
+    post:
+      summary: Reject the active revision and hash
+      parameters:
+        - $ref: '#/components/parameters/PrId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectRequest'
+      responses:
+        '200':
+          description: Rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResponse'
+  /v1/prs/{id}/events:
+    get:
+      summary: Audit history
+      parameters:
+        - $ref: '#/components/parameters/PrId'
+      responses:
+        '200':
+          description: Events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventsResponse'
+components:
+  parameters:
+    PrId:
+      in: path
+      name: id
+      required: true
+      schema: {type: string, format: uuid}
+    IdempotencyKey:
+      in: header
+      name: Idempotency-Key
+      required: true
+      schema: {type: string, pattern: '^[A-Za-z0-9._:-]{1,255}$'}
+  responses:
+    Error:
+      description: Error envelope
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: REVISION_MISMATCH
+              message: expected revision does not match the current row
+              details: {}
+  schemas:
+    ProposeRequest:
+      type: object
+      required: [title, reason, expires_in_seconds, changes]
+    ReviewRequest:
+      type: object
+      required: [revision, content_hash]
+    RejectRequest:
+      type: object
+      required: [revision, content_hash, reason]
+    PrResponse:
+      type: object
+      required: [pr_id, revision, content_hash, state, policy_decision]
+    DiffResponse:
+      type: object
+      required: [pr_id, revision, content_hash, changes]
+    ListResponse:
+      type: object
+      required: [items, next_cursor]
+    EventsResponse:
+      type: object
+      required: [pr_id, events]
+    ReviewResponse:
+      type: object
+      required: [pr_id, revision, content_hash, state, decision]
+    Error:
+      type: object
+      required: [error]
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+security:
+  - bearerAuth: []

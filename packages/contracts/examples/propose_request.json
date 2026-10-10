@@ -1,0 +1,16 @@
+{
+  "title": "Correct invoice payment terms",
+  "reason": "Invoice terms differ from the signed purchase order.",
+  "task_id": "task_123",
+  "expires_in_seconds": 3600,
+  "changes": [
+    {
+      "operation": "update",
+      "schema": "public",
+      "table": "invoices",
+      "key": {"id": "482"},
+      "expected_revision": "12",
+      "set": {"payment_terms": "net_30"}
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "pr_id": "22222222-2222-4222-8222-222222222222",
+  "title": "Correct invoice payment terms",
+  "reason": "Invoice terms differ from the signed purchase order.",
+  "task_id": "task_123",
+  "proposer_id": "33333333-3333-4333-8333-333333333333",
+  "state": "pending_review",
+  "revision": 1,
+  "content_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "policy_decision": "manual_review_required",
+  "policy_version": 1,
+  "expires_at": "2026-10-10T18:00:00.000000Z",
+  "created_at": "2026-10-10T17:00:00.000000Z",
+  "approvals": [],
+  "execution_status": null
+}

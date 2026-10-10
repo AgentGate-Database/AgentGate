@@ -1,0 +1,9 @@
+{
+  "name": "@agentgate/sdk",
+  "version": "0.0.0",
+  "private": true,
+  "description": "AgentGate TypeScript client scaffold. The implementation arrives with the developer-integration milestone.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts"
+}

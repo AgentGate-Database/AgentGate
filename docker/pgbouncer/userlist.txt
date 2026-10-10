@@ -1,0 +1,4 @@
+"postgres" "postgres"
+"agentgate_api" "local-dev-api-password"
+"agentgate_worker" "local-dev-worker-password"
+"agentgate_migrator" "local-dev-migrator-password"

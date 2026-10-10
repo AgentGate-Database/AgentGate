@@ -1,0 +1,14 @@
+{
+  "name": "agentgate",
+  "version-string": "0.1.0",
+  "description": "Postgres pull requests for AI agents",
+  "builtin-baseline": "e456309491fd875487bf02b8a0dca76c1b1b00cc",
+  "dependencies": [
+    "drogon",
+    "libpqxx",
+    "nlohmann-json",
+    "json-schema-validator",
+    "openssl",
+    "catch2"
+  ]
+}

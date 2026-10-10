@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["pr_id", "events"],
+  "properties": {
+    "pr_id": {"type": "string"},
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "created_at", "details"],
+        "properties": {
+          "id": {"type": "string"},
+          "type": {"type": "string"},
+          "created_at": {"type": "string"},
+          "details": {"type": "object"}
+        }
+      }
+    }
+  }
+}

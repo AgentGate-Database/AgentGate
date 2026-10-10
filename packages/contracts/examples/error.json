@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "REVISION_MISMATCH",
+    "message": "expected revision does not match the current row",
+    "details": {}
+  }
+}

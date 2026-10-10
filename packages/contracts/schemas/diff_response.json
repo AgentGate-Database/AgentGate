@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["pr_id", "revision", "content_hash", "changes"],
+  "properties": {
+    "pr_id": {"type": "string"},
+    "revision": {"type": "integer"},
+    "content_hash": {"type": "string"},
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["operation", "schema", "table", "key", "expected_revision", "fields"],
+        "properties": {
+          "operation": {"type": "string"},
+          "schema": {"type": "string"},
+          "table": {"type": "string"},
+          "key": {"type": "object"},
+          "expected_revision": {"type": "string"},
+          "fields": {"type": "array"}
+        }
+      }
+    }
+  }
+}
