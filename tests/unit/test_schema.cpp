@@ -19,6 +19,8 @@ TEST_CASE("contract examples validate and the validator rejects bad input", "[un
       {"diff_response.json", "diff_response.json"},
       {"list_response.json", "list_response.json"},
       {"review_response.json", "review_response.json"},
+      {"merge_request.json", "merge_request.json"},
+      {"merge_response.json", "merge_response.json"},
   };
   for (const auto &[schema_name, example_name] : pairs) {
     INFO(example_name);

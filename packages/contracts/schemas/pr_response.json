@@ -21,7 +21,38 @@
     "expires_at": {"type": "string"},
     "created_at": {"type": "string"},
     "approvals": {"type": "array"},
-    "execution_status": {"type": "null"},
+    "execution_status": {
+      "anyOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["job_id", "state", "receipt"],
+          "properties": {
+            "job_id": {"type": "string"},
+            "state": {"type": "string", "enum": ["queued", "completed", "failed"]},
+            "receipt": {
+              "anyOf": [
+                {"type": "null"},
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["receipt_id", "pr_id", "revision", "content_hash", "committed_at", "rows"],
+                  "properties": {
+                    "receipt_id": {"type": "string"},
+                    "pr_id": {"type": "string"},
+                    "revision": {"type": "integer"},
+                    "content_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                    "committed_at": {"type": "string"},
+                    "rows": {"type": "array"}
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
     "diff": {"type": "object"}
   }
 }

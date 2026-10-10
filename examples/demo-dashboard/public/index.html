@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AgentGate demo</title>
+  <style>
+    body { font-family: "Iowan Old Style", Palatino, Georgia, serif; margin: 0; background: #f4f1ea; color: #1c1915; }
+    header { padding: 1.25rem 1.5rem 0.25rem; }
+    h1 { font-size: 1.6rem; margin: 0; }
+    p.lead { margin: 0.35rem 0 0; max-width: 46rem; }
+    main { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding: 1rem 1.5rem 2rem; }
+    section { background: #fffdf8; border: 1px solid #d9d1c3; border-radius: 8px; padding: 1rem 1.1rem; min-height: 16rem; }
+    h2 { font-size: 1.05rem; margin: 0 0 0.75rem; }
+    button { font: inherit; margin: 0 0.4rem 0.6rem 0; padding: 0.35rem 0.7rem; background: #1c1915; color: #fffdf8; border: 0; border-radius: 4px; }
+    button:disabled { background: #8a8175; }
+    pre { white-space: pre-wrap; background: #f6f3ec; padding: 0.75rem; border-radius: 6px; min-height: 7rem; }
+    @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>AgentGate</h1>
+    <p class="lead">An approved proposal is queued. The invoice changes only after the worker commits a receipt.</p>
+  </header>
+  <main>
+    <section>
+      <h2>Agent intent</h2>
+      <button id="prepare" type="button">Prepare sample invoice</button>
+      <button id="send" type="button">Send proposal</button>
+      <pre id="intent">No proposal yet.</pre>
+    </section>
+    <section>
+      <h2>AgentGate status</h2>
+      <button id="show" type="button">Show submission</button>
+      <pre id="status">No submission yet.</pre>
+    </section>
+    <section>
+      <h2>Company review</h2>
+      <button id="approve" type="button">Approve</button>
+      <button id="merge" type="button">Merge</button>
+      <pre id="review">Waiting for a submission.</pre>
+    </section>
+    <section>
+      <h2>Business data in Postgres</h2>
+      <pre id="business">Reading…</pre>
+    </section>
+  </main>
+  <script>
+    const intent = document.querySelector("#intent");
+    const status = document.querySelector("#status");
+    const review = document.querySelector("#review");
+    const business = document.querySelector("#business");
+    let polling = false;
+
+    function show(node, value) {
+      node.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+    }
+
+    async function post(path) {
+      const response = await fetch(path, { method: "POST" });
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(body.error ? body.error.message : response.statusText);
+      }
+      return body;
+    }
+
+    async function refreshBusiness() {
+      const response = await fetch("/api/business");
+      show(business, await response.json());
+    }
+
+    function describe(body) {
+      const execution = body.execution_status;
+      const queued = body.state === "queued" && (!execution || execution.receipt === null);
+      return {
+        state: body.state,
+        committed: body.state === "merged" && execution && execution.receipt !== null,
+        queue_note: queued ? "Queued. The business row is not committed yet." : null,
+        revision: body.revision,
+        execution_status: execution,
+      };
+    }
+
+    async function refreshStatus() {
+      const response = await fetch("/api/status");
+      if (response.status === 409) {
+        return;
+      }
+      const body = await response.json();
+      show(status, describe(body));
+      if (["merged", "conflicted", "failed", "blocked", "expired", "rejected"].includes(body.state)) {
+        polling = false;
+      }
+    }
+
+    document.querySelector("#prepare").addEventListener("click", async () => {
+      show(intent, await post("/api/prepare"));
+      show(status, "No submission yet.");
+      show(review, "Waiting for a submission.");
+    });
+    document.querySelector("#send").addEventListener("click", async () => {
+      const body = await post("/api/propose");
+      show(intent, { pr_id: body.pr_id, state: body.state, revision: body.revision });
+      show(status, describe(body));
+    });
+    document.querySelector("#show").addEventListener("click", async () => {
+      show(status, describe(await post("/api/show")));
+    });
+    document.querySelector("#approve").addEventListener("click", async () => {
+      const body = await post("/api/approve");
+      show(review, { decision: body.decision, state: body.state, wrote_business_row: false });
+      show(status, body);
+      await refreshBusiness();
+    });
+    document.querySelector("#merge").addEventListener("click", async () => {
+      const body = await post("/api/merge");
+      show(review, {
+        http_state: body.state,
+        receipt: body.receipt,
+        note: body.receipt ? "Receipt already committed." : "Accepted into the queue. Not a commit.",
+      });
+      polling = true;
+    });
+
+    setInterval(() => {
+      refreshBusiness().catch((error) => show(business, error.message));
+      if (polling) {
+        refreshStatus().catch((error) => show(status, error.message));
+      }
+    }, 1000);
+    refreshBusiness().catch((error) => show(business, error.message));
+  </script>
+</body>
+</html>

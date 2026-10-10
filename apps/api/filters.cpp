@@ -13,6 +13,8 @@ drogon::HttpStatusCode to_status(int code) {
     return drogon::k200OK;
   case 201:
     return drogon::k201Created;
+  case 202:
+    return drogon::k202Accepted;
   case 401:
     return drogon::k401Unauthorized;
   case 403:

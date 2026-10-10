@@ -125,6 +125,15 @@ DbResult Database::approve(const std::string &principal_id, const std::string &p
   return unwrap_mutation(wrapper);
 }
 
+DbResult Database::enqueue_merge(const std::string &principal_id, const std::string &pr_id,
+                                 const nlohmann::json &body, const std::string &idempotency_key,
+                                 const std::string &request_digest) const {
+  const auto wrapper =
+      call_json("SELECT agentgate.enqueue_merge($1::uuid, $2::uuid, $3::jsonb, $4::text, $5::text)",
+                pqxx::params{principal_id, pr_id, body.dump(), idempotency_key, request_digest});
+  return unwrap_mutation(wrapper);
+}
+
 DbResult Database::reject(const std::string &principal_id, const std::string &pr_id,
                           const nlohmann::json &body, const std::string &idempotency_key,
                           const std::string &request_digest) const {

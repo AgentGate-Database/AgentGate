@@ -46,6 +46,10 @@ public:
   [[nodiscard]] DbResult reject(const std::string &principal_id, const std::string &pr_id,
                                 const nlohmann::json &body, const std::string &idempotency_key,
                                 const std::string &request_digest) const;
+  [[nodiscard]] DbResult enqueue_merge(const std::string &principal_id, const std::string &pr_id,
+                                       const nlohmann::json &body,
+                                       const std::string &idempotency_key,
+                                       const std::string &request_digest) const;
   [[nodiscard]] nlohmann::json get_pr(const std::string &principal_id,
                                       const std::string &pr_id) const;
   [[nodiscard]] nlohmann::json get_diff(const std::string &principal_id,
@@ -74,6 +78,7 @@ struct AppContext {
   nlohmann::json propose_schema;
   nlohmann::json review_schema;
   nlohmann::json reject_schema;
+  nlohmann::json merge_schema;
 };
 
 [[nodiscard]] AppContext &app_context();

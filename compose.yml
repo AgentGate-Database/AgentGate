@@ -76,6 +76,48 @@ services:
       retries: 30
       start_period: 10s
 
+  demo-credentials:
+    image: ${POSTGRES_IMAGE:-postgres:17}
+    profiles: ["demo"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGUSER: agentgate_migrator
+      PGPASSWORD: ${AGENTGATE_MIGRATOR_PASSWORD:-local-dev-migrator-password}
+      PGDATABASE: ${POSTGRES_DB:-agentgate}
+    volumes:
+      - ./scripts:/scripts:ro
+      - demo-secrets:/secrets
+    entrypoint: ["/bin/bash", "/scripts/demo-credentials.sh", "/secrets/demo.env"]
+    restart: "no"
+
+  demo:
+    image: node:22-bookworm
+    profiles: ["demo"]
+    depends_on:
+      demo-credentials:
+        condition: service_completed_successfully
+      api:
+        condition: service_healthy
+      worker:
+        condition: service_healthy
+    environment:
+      AGENTGATE_API_URL: http://api:8080
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-agentgate}
+      DEMO_SECRETS: /secrets/demo.env
+      PORT: "8090"
+    volumes:
+      - ./examples/demo-dashboard:/app
+      - demo-node-modules:/app/node_modules
+      - demo-secrets:/secrets:ro
+    working_dir: /app
+    command: ["bash", "-lc", "npm install --omit=dev && node server.js"]
+    ports:
+      - "127.0.0.1:${DEMO_PORT:-8090}:8090"
+
   pooler:
     image: edoburu/pgbouncer:v1.24.1-p1
     profiles: ["pooler"]
@@ -97,3 +139,5 @@ services:
 
 volumes:
   agentgate-db:
+  demo-secrets:
+  demo-node-modules:

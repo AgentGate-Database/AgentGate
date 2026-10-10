@@ -149,6 +149,29 @@ void post_decision(const drogon::HttpRequestPtr &request,
   });
 }
 
+void post_merge(const drogon::HttpRequestPtr &request,
+                std::function<void(const drogon::HttpResponsePtr &)> &&callback,
+                const std::string &pr_id) {
+  if (auto rejected = reject_missing_bearer(request)) {
+    callback(*rejected);
+    return;
+  }
+  if (auto rejected = reject_missing_idempotency(request)) {
+    callback(*rejected);
+    return;
+  }
+  const auto token = bearer_token(request);
+  const auto key = header_value(request, "idempotency-key");
+  const auto raw = std::string(request->body());
+  const auto digest = digest_hex(raw);
+  on_worker(std::move(callback), [token, key, raw, digest, pr_id] {
+    const auto body = parse_body(raw, app_context().merge_schema);
+    const auto principal = authenticated_principal(token);
+    const auto result = app_context().database->enqueue_merge(principal, pr_id, body, key, digest);
+    return json_response(result.http_status, result.body);
+  });
+}
+
 void get_one(const drogon::HttpRequestPtr &request,
              std::function<void(const drogon::HttpResponsePtr &)> &&callback,
              const std::string &pr_id, bool diff) {
@@ -228,6 +251,7 @@ void register_routes() {
          std::function<void(const drogon::HttpResponsePtr &)> &&callback,
          const std::string &pr_id) { post_decision(request, std::move(callback), pr_id, true); },
       {Post});
+  drogon::app().registerHandler("/v1/prs/{1}/merge", &post_merge, {Post});
   drogon::app().registerHandler(
       "/v1/prs/{1}/reject",
       [](const drogon::HttpRequestPtr &request,

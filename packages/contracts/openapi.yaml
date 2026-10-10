@@ -3,8 +3,8 @@ info:
   title: AgentGate API
   version: 0.1.0
   description: |
-    Postgres pull requests for AI agents. This document covers the proposal and
-    manual review routes. Merge, reads, and webhooks are later milestones.
+    Postgres pull requests for AI agents. This document covers proposal, review,
+    and queued merge. Reads and webhooks are later milestones.
     Numeric and bigint values cross the API as strings so they do not lose precision.
 servers:
   - url: http://127.0.0.1:8080
@@ -169,6 +169,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReviewResponse'
+  /v1/prs/{id}/merge:
+    post:
+      summary: Queue an approved revision for atomic merge
+      parameters:
+        - $ref: '#/components/parameters/PrId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MergeRequest'
+            example:
+              revision: 1
+              content_hash: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      responses:
+        '202':
+          description: Merge accepted into the queue. This is not a commit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MergeResponse'
+        '200':
+          description: The revision already has a merge receipt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MergeResponse'
   /v1/prs/{id}/events:
     get:
       summary: Audit history
@@ -230,6 +258,12 @@ components:
     ReviewResponse:
       type: object
       required: [pr_id, revision, content_hash, state, decision]
+    MergeRequest:
+      type: object
+      required: [revision, content_hash]
+    MergeResponse:
+      type: object
+      required: [pr_id, revision, content_hash, state, job_id, receipt]
     Error:
       type: object
       required: [error]
