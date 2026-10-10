@@ -76,6 +76,21 @@ void ready(const drogon::HttpRequestPtr &,
   });
 }
 
+void post_reads(const drogon::HttpRequestPtr &request,
+                std::function<void(const drogon::HttpResponsePtr &)> &&callback) {
+  if (auto rejected = reject_missing_bearer(request)) {
+    callback(*rejected);
+    return;
+  }
+  const auto token = bearer_token(request);
+  const auto raw = std::string(request->body());
+  on_worker(std::move(callback), [token, raw] {
+    const auto body = parse_body(raw, app_context().read_schema);
+    const auto principal = authenticated_principal(token);
+    return json_response(200, app_context().database->create_read(principal, body));
+  });
+}
+
 void post_prs(const drogon::HttpRequestPtr &request,
               std::function<void(const drogon::HttpResponsePtr &)> &&callback) {
   if (auto rejected = reject_missing_bearer(request)) {
@@ -242,6 +257,7 @@ void register_routes() {
   using drogon::Post;
   drogon::app().registerHandler("/healthz", &health, {Get});
   drogon::app().registerHandler("/readyz", &ready, {Get});
+  drogon::app().registerHandler("/v1/reads", &post_reads, {Post});
   drogon::app().registerHandler("/v1/prs", &post_prs, {Post});
   drogon::app().registerHandler("/v1/prs", &list_prs, {Get});
   drogon::app().registerHandler("/v1/prs/{1}/revisions", &post_revision, {Post});

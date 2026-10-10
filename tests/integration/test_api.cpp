@@ -138,6 +138,16 @@ std::string revision_of(long id) {
   return value;
 }
 
+std::string terms_of(long id) {
+  pqxx::work work(env().admin);
+  const auto value =
+      work.exec("SELECT payment_terms FROM public.invoices WHERE id = $1", pqxx::params{id})
+          .one_field()
+          .as<std::string>();
+  work.commit();
+  return value;
+}
+
 nlohmann::json proposal(long id, const std::string &revision, nlohmann::json set,
                         const std::string &title, const std::string &operation = "update") {
   return nlohmann::json{
@@ -179,8 +189,10 @@ TEST_CASE("health endpoints answer without a credential", "[integration]") {
 TEST_CASE("proposals move through review and keep the documented contract", "[integration]") {
   require_api();
   const auto rev = revision_of(482);
-  const auto body = proposal(482, rev, nlohmann::json{{"payment_terms", "net_45"}},
-                             "Correct invoice payment terms");
+  const auto before = terms_of(482);
+  const auto after = before == "net_45" ? "net_60" : "net_45";
+  const auto body =
+      proposal(482, rev, nlohmann::json{{"payment_terms", after}}, "Correct invoice payment terms");
   const auto raw = body.dump();
   const auto created = call("POST", "/v1/prs", env().proposer.token, raw, next_key());
   INFO(created.body);
@@ -189,7 +201,7 @@ TEST_CASE("proposals move through review and keep the documented contract", "[in
   expect_schema("pr_response.json", created_json);
   REQUIRE(created_json["state"] == "pending_review");
   REQUIRE(created_json["policy_decision"] == "manual_review_required");
-  REQUIRE(created_json["diff"]["changes"][0]["fields"][0]["after"] == "net_45");
+  REQUIRE(created_json["diff"]["changes"][0]["fields"][0]["after"] == after);
   const auto pr_id = created_json["pr_id"].get<std::string>();
   const auto hash = created_json["content_hash"].get<std::string>();
 
@@ -202,8 +214,8 @@ TEST_CASE("proposals move through review and keep the documented contract", "[in
   REQUIRE(diff.status == 200);
   const auto diff_json = nlohmann::json::parse(diff.body);
   expect_schema("diff_response.json", diff_json);
-  REQUIRE(diff_json["changes"][0]["fields"][0]["before"] == "net_15");
-  REQUIRE(diff_json["changes"][0]["fields"][0]["after"] == "net_45");
+  REQUIRE(diff_json["changes"][0]["fields"][0]["before"] == before);
+  REQUIRE(diff_json["changes"][0]["fields"][0]["after"] == after);
 
   const auto events = call("GET", "/v1/prs/" + pr_id + "/events", env().proposer.token, "", "");
   REQUIRE(events.status == 200);
@@ -221,8 +233,8 @@ TEST_CASE("proposals move through review and keep the documented contract", "[in
 
   const auto hidden = call("GET", "/v1/prs/" + pr_id + "/diff", env().other.token, "", "");
   expect_error(hidden, 404, "NOT_FOUND");
-  REQUIRE(hidden.body.find("net_45") == std::string::npos);
-  REQUIRE(hidden.body.find("net_15") == std::string::npos);
+  REQUIRE(hidden.body.find(after) == std::string::npos);
+  REQUIRE(hidden.body.find(before) == std::string::npos);
 
   nlohmann::json review{
       {"revision", 1}, {"content_hash", hash}, {"reviewer_id", env().proposer.principal_id}};
@@ -248,8 +260,11 @@ TEST_CASE("proposals move through review and keep the documented contract", "[in
 
 TEST_CASE("idempotency replays the stored response and rejects a different body", "[integration]") {
   require_api();
-  const auto body = proposal(482, revision_of(482), nlohmann::json{{"payment_terms", "net_60"}},
-                             "idempotent terms");
+  const auto current = terms_of(482);
+  const auto body =
+      proposal(482, revision_of(482),
+               nlohmann::json{{"payment_terms", current == "net_60" ? "net_45" : "net_60"}},
+               "idempotent terms");
   const auto raw = body.dump();
   const auto key = next_key();
   const auto first = call("POST", "/v1/prs", env().proposer.token, raw, key);
@@ -443,7 +458,8 @@ TEST_CASE("proposal validation rejects unsafe and empty changes", "[integration]
                "VALIDATION_FAILED");
 
   expect_error(call("POST", "/v1/prs", token,
-                    proposal(482, rev, {{"payment_terms", "net_15"}}, "noop").dump(), next_key()),
+                    proposal(482, rev, {{"payment_terms", terms_of(482)}}, "noop").dump(),
+                    next_key()),
                422, "VALIDATION_FAILED");
 
   auto with_null = proposal(482, rev, nlohmann::json{{"notes", nullptr}}, "null note");
@@ -473,8 +489,7 @@ TEST_CASE("proposal validation rejects unsafe and empty changes", "[integration]
 
   auto reads = proposal(482, rev, {{"notes", "tracked"}}, "reads");
   reads["read_tokens"] = nlohmann::json::array({"token-1"});
-  expect_error(call("POST", "/v1/prs", token, reads.dump(), next_key()), 422,
-               "UNSUPPORTED_OPERATION");
+  expect_error(call("POST", "/v1/prs", token, reads.dump(), next_key()), 404, "NOT_FOUND");
 
   auto unknown = proposal(482, rev, {{"notes", "z"}}, "missing table");
   unknown["changes"][0]["table"] = "not_enrolled";

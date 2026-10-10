@@ -102,7 +102,12 @@
     });
     document.querySelector("#send").addEventListener("click", async () => {
       const body = await post("/api/propose");
-      show(intent, { pr_id: body.pr_id, state: body.state, revision: body.revision });
+      show(intent, {
+        pr_id: body.pr_id,
+        state: body.state,
+        revision: body.revision,
+        tracked_read: true,
+      });
       show(status, describe(body));
     });
     document.querySelector("#show").addEventListener("click", async () => {

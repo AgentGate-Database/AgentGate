@@ -1,0 +1,13 @@
+{
+  "token": "agr_55555555-5555-4555-8555-555555555555_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "expires_at": "2026-10-10T18:00:00.000000Z",
+  "rows": [
+    {
+      "schema": "public",
+      "table": "invoices",
+      "key": {"id": "482"},
+      "revision": "1",
+      "values": {"payment_terms": "net_15"}
+    }
+  ]
+}

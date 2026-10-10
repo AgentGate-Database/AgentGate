@@ -35,6 +35,7 @@ bool terminal_failure(agentgate::ErrorCode code) {
   case agentgate::ErrorCode::ConstraintViolation:
   case agentgate::ErrorCode::NotFound:
   case agentgate::ErrorCode::UnsupportedTable:
+  case agentgate::ErrorCode::LimitExceeded:
     return true;
   default:
     return false;

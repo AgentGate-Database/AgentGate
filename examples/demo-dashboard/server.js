@@ -38,6 +38,7 @@ if (!proposerToken || !reviewerToken || !process.env.DATABASE_URL) {
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 let current = null;
+let tracked = null;
 
 async function readInvoice() {
   const result = await pool.query(
@@ -90,29 +91,61 @@ async function handle(request, response) {
   }
   if (request.method === "POST" && url.pathname === "/api/prepare") {
     current = null;
-    const invoice = await readInvoice();
+    tracked = null;
+    const read = await api("POST", "/v1/reads", proposerToken, {
+      expires_in_seconds: 3600,
+      reads: [
+        {
+          schema: "public",
+          table: "invoices",
+          key: { id: String(invoiceId) },
+          columns: ["payment_terms"],
+        },
+      ],
+    });
+    if (read.status !== 200 || !read.body || !read.body.token || !Array.isArray(read.body.rows)) {
+      send(response, read.status, read.body);
+      return;
+    }
+    const row = read.body.rows[0];
+    const terms = row.values.payment_terms;
+    tracked = {
+      token: read.body.token,
+      revision: row.revision,
+      payment_terms: terms,
+      proposed_terms: terms === "net_45" ? "net_60" : "net_45",
+    };
     send(response, 200, {
-      ...invoice,
-      proposed_terms: invoice.payment_terms === "net_45" ? "net_60" : "net_45",
+      id: String(invoiceId),
+      tenant_id: "acme",
+      payment_terms: terms,
+      revision: row.revision,
+      proposed_terms: tracked.proposed_terms,
+      tracked_read: true,
     });
     return;
   }
   if (request.method === "POST" && url.pathname === "/api/propose") {
-    const invoice = await readInvoice();
-    const proposed = invoice.payment_terms === "net_45" ? "net_60" : "net_45";
+    if (!tracked) {
+      send(response, 409, {
+        error: { code: "VALIDATION_FAILED", message: "prepare a tracked read first" },
+      });
+      return;
+    }
     const result = await api("POST", "/v1/prs", proposerToken, {
       title: "Correct invoice payment terms",
       reason: "Invoice terms differ from the signed purchase order.",
       task_id: "demo-invoice-482",
       expires_in_seconds: 3600,
+      read_tokens: [tracked.token],
       changes: [
         {
           operation: "update",
           schema: "public",
           table: "invoices",
           key: { id: String(invoiceId) },
-          expected_revision: invoice.revision,
-          set: { payment_terms: proposed },
+          expected_revision: tracked.revision,
+          set: { payment_terms: tracked.proposed_terms },
         },
       ],
     });

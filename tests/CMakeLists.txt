@@ -12,6 +12,7 @@ add_executable(agentgate_integration_tests
   integration/test_enrollment.cpp
   integration/test_api.cpp
   integration/test_merge.cpp
+  integration/test_policy.cpp
   integration/http_client.cpp
   integration/server.cpp)
 target_link_libraries(agentgate_integration_tests PRIVATE agentgate_core Catch2::Catch2WithMain)

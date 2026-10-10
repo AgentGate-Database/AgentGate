@@ -61,6 +61,23 @@ DbResult Database::unwrap_mutation(const nlohmann::json &wrapper) const {
   return DbResult{wrapper.at("http_status").get<int>(), wrapper.at("body")};
 }
 
+void Database::note_policy_block(const std::string &principal_id,
+                                 const AgentGateError &error) const {
+  int version = 0;
+  if (error.details.is_object() && error.details.contains("policy_version") &&
+      error.details.at("policy_version").is_number_integer()) {
+    version = error.details.at("policy_version").get<int>();
+  }
+  try {
+    auto lease = pool_.acquire();
+    Transaction tx(lease.get(), pool_.timeouts());
+    tx.work().exec("SELECT agentgate.record_policy_block($1::uuid, $2::int)",
+                   pqxx::params{principal_id, version});
+    tx.commit();
+  } catch (const std::exception &) {
+  }
+}
+
 Principal Database::authenticate(const std::string &credential_id,
                                  const std::string &secret) const {
   const auto computed = sha256_bytes(secret);
@@ -94,26 +111,47 @@ Principal Database::authenticate(const std::string &credential_id,
   return principal;
 }
 
+nlohmann::json Database::create_read(const std::string &principal_id,
+                                     const nlohmann::json &body) const {
+  return call_json("SELECT agentgate.create_read($1::uuid, $2::jsonb, $3::int, $4::int, $5::int)",
+                   pqxx::params{principal_id, body.dump(), config_.min_expiry_seconds,
+                                config_.max_expiry_seconds, config_.max_pr_rows});
+}
+
 DbResult Database::propose(const std::string &principal_id, const nlohmann::json &body,
                            const std::string &idempotency_key,
                            const std::string &request_digest) const {
-  const auto wrapper = call_json(
-      "SELECT agentgate.propose($1::uuid, $2::jsonb, $3::text, $4::text, $5::int, $6::int, "
-      "$7::int)",
-      pqxx::params{principal_id, body.dump(), idempotency_key, request_digest, config_.max_pr_rows,
-                   config_.min_expiry_seconds, config_.max_expiry_seconds});
-  return unwrap_mutation(wrapper);
+  try {
+    const auto wrapper = call_json(
+        "SELECT agentgate.propose($1::uuid, $2::jsonb, $3::text, $4::text, $5::int, $6::int, "
+        "$7::int)",
+        pqxx::params{principal_id, body.dump(), idempotency_key, request_digest,
+                     config_.max_pr_rows, config_.min_expiry_seconds, config_.max_expiry_seconds});
+    return unwrap_mutation(wrapper);
+  } catch (const AgentGateError &error) {
+    if (error.code == ErrorCode::PolicyBlocked) {
+      note_policy_block(principal_id, error);
+    }
+    throw;
+  }
 }
 
 DbResult Database::create_revision(const std::string &principal_id, const std::string &pr_id,
                                    const nlohmann::json &body, const std::string &idempotency_key,
                                    const std::string &request_digest) const {
-  const auto wrapper = call_json(
-      "SELECT agentgate.create_revision($1::uuid, $2::uuid, $3::jsonb, $4::text, $5::text, "
-      "$6::int, $7::int, $8::int)",
-      pqxx::params{principal_id, pr_id, body.dump(), idempotency_key, request_digest,
-                   config_.max_pr_rows, config_.min_expiry_seconds, config_.max_expiry_seconds});
-  return unwrap_mutation(wrapper);
+  try {
+    const auto wrapper = call_json(
+        "SELECT agentgate.create_revision($1::uuid, $2::uuid, $3::jsonb, $4::text, $5::text, "
+        "$6::int, $7::int, $8::int)",
+        pqxx::params{principal_id, pr_id, body.dump(), idempotency_key, request_digest,
+                     config_.max_pr_rows, config_.min_expiry_seconds, config_.max_expiry_seconds});
+    return unwrap_mutation(wrapper);
+  } catch (const AgentGateError &error) {
+    if (error.code == ErrorCode::PolicyBlocked) {
+      note_policy_block(principal_id, error);
+    }
+    throw;
+  }
 }
 
 DbResult Database::approve(const std::string &principal_id, const std::string &pr_id,

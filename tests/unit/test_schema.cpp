@@ -12,6 +12,8 @@ TEST_CASE("contract examples validate and the validator rejects bad input", "[un
 
   const std::pair<const char *, const char *> pairs[] = {
       {"propose_request.json", "propose_request.json"},
+      {"read_request.json", "read_request.json"},
+      {"read_response.json", "read_response.json"},
       {"review_request.json", "review_request.json"},
       {"reject_request.json", "reject_request.json"},
       {"error.json", "error.json"},

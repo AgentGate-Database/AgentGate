@@ -25,6 +25,7 @@ int main() {
     agentgate::self_test_schemas(config.contracts_dir);
     ctx.propose_schema =
         agentgate::load_contract_schema(config.contracts_dir, "propose_request.json");
+    ctx.read_schema = agentgate::load_contract_schema(config.contracts_dir, "read_request.json");
     ctx.review_schema =
         agentgate::load_contract_schema(config.contracts_dir, "review_request.json");
     ctx.reject_schema =

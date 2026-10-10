@@ -3,12 +3,36 @@ info:
   title: AgentGate API
   version: 0.1.0
   description: |
-    Postgres pull requests for AI agents. This document covers proposal, review,
-    and queued merge. Reads and webhooks are later milestones.
+    Postgres pull requests for AI agents. This document covers tracked reads,
+    proposal, review, and queued merge. Webhooks are a later milestone.
     Numeric and bigint values cross the API as strings so they do not lose precision.
 servers:
   - url: http://127.0.0.1:8080
 paths:
+  /v1/reads:
+    post:
+      summary: Read explicit rows and issue a dependency token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReadRequest'
+            example:
+              expires_in_seconds: 3600
+              reads:
+                - schema: public
+                  table: invoices
+                  key:
+                    id: "482"
+                  columns: [payment_terms]
+      responses:
+        '200':
+          description: Rows and a principal-bound token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadResponse'
   /v1/prs:
     post:
       summary: Create an update proposal
@@ -237,6 +261,12 @@ components:
     ProposeRequest:
       type: object
       required: [title, reason, expires_in_seconds, changes]
+    ReadRequest:
+      type: object
+      required: [expires_in_seconds, reads]
+    ReadResponse:
+      type: object
+      required: [token, expires_at, rows]
     ReviewRequest:
       type: object
       required: [revision, content_hash]

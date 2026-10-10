@@ -12,4 +12,4 @@ A new revision is a new row. Older approvals remain as history and no longer mat
 
 ## Consequences
 
-Clients display the hash the server returns. They do not hash a local copy unless they reproduce this canonical form. `read_tokens` are rejected until dependency tracking exists, so a hash cannot claim dependencies it does not store. The content includes an empty `dependencies` array.
+Clients display the hash the server returns. They do not hash a local copy unless they reproduce this canonical form. A proposal with no read tokens stores an empty `dependencies` array. A proposal with tokens stores those frozen rows, sorted by schema, table, and key text, in that array.

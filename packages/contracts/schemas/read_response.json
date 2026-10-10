@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["token", "expires_at", "rows"],
+  "properties": {
+    "token": {"type": "string", "pattern": "^agr_[0-9a-f-]{36}_[0-9a-f]{64}$"},
+    "expires_at": {"type": "string"},
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema", "table", "key", "revision", "values"],
+        "properties": {
+          "schema": {"type": "string"},
+          "table": {"type": "string"},
+          "key": {"type": "object"},
+          "revision": {"type": "string"},
+          "values": {"type": "object"}
+        }
+      }
+    }
+  }
+}

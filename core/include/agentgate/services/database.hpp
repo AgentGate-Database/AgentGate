@@ -2,6 +2,7 @@
 
 #include "agentgate/config.hpp"
 #include "agentgate/db/pool.hpp"
+#include "agentgate/error.hpp"
 #include "agentgate/db/work_pool.hpp"
 
 #include <pqxx/pqxx>
@@ -33,6 +34,8 @@ public:
   [[nodiscard]] Principal authenticate(const std::string &credential_id,
                                        const std::string &secret) const;
 
+  [[nodiscard]] nlohmann::json create_read(const std::string &principal_id,
+                                           const nlohmann::json &body) const;
   [[nodiscard]] DbResult propose(const std::string &principal_id, const nlohmann::json &body,
                                  const std::string &idempotency_key,
                                  const std::string &request_digest) const;
@@ -65,6 +68,7 @@ public:
 private:
   [[nodiscard]] nlohmann::json call_json(const std::string &sql, pqxx::params params) const;
   [[nodiscard]] DbResult unwrap_mutation(const nlohmann::json &wrapper) const;
+  void note_policy_block(const std::string &principal_id, const AgentGateError &error) const;
 
   ConnectionPool &pool_;
   Config config_;
@@ -76,6 +80,7 @@ struct AppContext {
   std::unique_ptr<WorkPool> work;
   std::unique_ptr<Database> database;
   nlohmann::json propose_schema;
+  nlohmann::json read_schema;
   nlohmann::json review_schema;
   nlohmann::json reject_schema;
   nlohmann::json merge_schema;
