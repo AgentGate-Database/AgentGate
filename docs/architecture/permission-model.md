@@ -6,10 +6,10 @@ The HTTP API is the trust boundary for principals. Database roles are the trust 
 
 | Kind | Can |
 | --- | --- |
-| `proposer` | Propose updates on scoped tables and tenants. Read their own authorized PRs. |
+| `proposer` | Create tracked reads and propose updates on scoped tables and tenants. Read their own authorized PRs. Request merge of an approved PR. Propose a revert of their own merged receipt. Cannot approve. |
 | `reviewer` | Approve or reject the active revision when assigned to every table in it. Cannot approve a PR they proposed. |
-| `admin` | Propose on enrolled tables and view PRs. Cannot approve unless the principal is a reviewer, which is a separate kind. |
-| `worker` | No HTTP principal in this milestone. The worker database role only runs expiry. |
+| `admin` | Propose on enrolled tables, view PRs, and register webhooks. Cannot approve unless the principal is a reviewer, which is a separate kind. |
+| `worker` | No HTTP principal. The worker database role claims merge jobs, merges, expires proposals, and delivers webhooks. |
 
 Scopes are server-side JSON on `agentgate.principals`:
 
@@ -19,7 +19,9 @@ Scopes are server-side JSON on `agentgate.principals`:
 
 `reviewer_assignments` maps a reviewer principal to an enrolled table. Callers cannot send a reviewer id. `agentgate.assign_reviewer` is migration-role only.
 
-`external_issuer` and `external_subject` are reserved for a later verified-identity adapter (for example Supabase Auth). They are unused by bearer authentication. No JWT is accepted in this milestone.
+`external_issuer` and `external_subject` are reserved for a later verified-identity adapter (for example Supabase Auth). They are unused by bearer authentication. No JWT is accepted.
+
+The MCP adapter is a stdio client of the HTTP API. It sends the caller's bearer token and adds no database role. A proposer token presented to MCP still cannot approve, because the HTTP API rejects that call. The agent-facing tool list is `read_rows`, `propose_change`, `get_pr`, `get_pr_diff`, `list_prs`, and `get_pr_status`. Approve, reject, policy, webhook, and credential tools are not registered.
 
 ## Database roles
 
@@ -27,8 +29,8 @@ Scopes are server-side JSON on `agentgate.principals`:
 | --- | --- | --- |
 | `agentgate_owner` | no | Owns functions and metadata. Not superuser. Not `BYPASSRLS`. |
 | `agentgate_migrator` | yes | `enroll_table`, `issue_credential`, `assign_reviewer`. |
-| `agentgate_api` | yes | Authenticate, propose, review, read, expire. No table DML. |
-| `agentgate_worker` | yes | `expire_prs` only. No approve, no business-table DML. |
+| `agentgate_api` | yes | Authenticate, propose, review, tracked reads, revert, webhook registration, and merge enqueue. No table DML. |
+| `agentgate_worker` | yes | `expire_prs`, `claim_merge_job`, `merge_pr`, and webhook delivery. No approve. No direct business-table DML; merge runs as the owner of the security-definer function. |
 
 Metadata tables have no privileges for the API or worker roles. Security-definer functions owned by `agentgate_owner` perform the writes. `enroll_table` is security invoker so the migration role's existing right to `ALTER` the business table is what adds the revision column. During enrollment the function grants `SELECT` and `UPDATE` on that table to `agentgate_owner` for the later merge function, and revokes the same table from `agentgate_api` and `agentgate_worker`.
 

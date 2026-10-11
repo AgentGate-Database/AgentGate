@@ -105,16 +105,21 @@ services:
       worker:
         condition: service_healthy
     environment:
+      AGENTGATE_DEMO: "1"
       AGENTGATE_API_URL: http://api:8080
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-agentgate}
       DEMO_SECRETS: /secrets/demo.env
       PORT: "8090"
     volumes:
+      - ./packages:/packages
       - ./examples/demo-dashboard:/app
       - demo-node-modules:/app/node_modules
       - demo-secrets:/secrets:ro
     working_dir: /app
-    command: ["bash", "-lc", "npm install --omit=dev && node server.js"]
+    command:
+      - bash
+      - -lc
+      - npm install --omit=dev --prefix /packages/mcp && npm install --omit=dev && node --experimental-strip-types server.js
     ports:
       - "127.0.0.1:${DEMO_PORT:-8090}:8090"
 

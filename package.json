@@ -1,0 +1,11 @@
+{
+  "name": "agentgate",
+  "private": true,
+  "scripts": {
+    "test": "node --experimental-strip-types --test packages/sdk/test/paths.test.ts packages/mcp/test/tools.test.ts examples/demo-dashboard/test/demo-mode.test.ts packages/sdk/test/equivalence.test.ts"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "^2.0.0",
+    "pg": "^8.16.3"
+  }
+}

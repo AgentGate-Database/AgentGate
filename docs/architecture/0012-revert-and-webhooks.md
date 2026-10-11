@@ -18,4 +18,4 @@ Destination checks run at registration and again at delivery, after DNS resoluti
 
 ## Consequences
 
-The invoice demo proposes a revert over HTTP. Approval of that proposal does not change the business row. The row returns to the receipt's before-image only after the reverse merge commits, and its revision increases. The MCP adapter, drift simulator, and demo reset stay later work.
+The invoice demo proposes a revert over HTTP. Approval of that proposal does not change the business row. The row returns to the receipt's before-image only after the reverse merge commits, and its revision increases. The MCP adapter and the demo drift fixture are described in ADR 0013.

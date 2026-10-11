@@ -113,5 +113,19 @@ jobs:
           AGENTGATE_MIGRATOR_PASSWORD: local-dev-migrator-password
           AGENTGATE_SEED: "true"
         run: packages/db/migrate.sh
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Node tests
+        env:
+          AGENTGATE_API_BIN: build/ci-linux/apps/api/agentgate-api
+          AGENTGATE_TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/agentgate
+          AGENTGATE_TEST_API_DATABASE_URL: postgresql://agentgate_api:local-dev-api-password@127.0.0.1:5432/agentgate
+          AGENTGATE_CONTRACTS_DIR: packages/contracts
+        run: |
+          npm ci
+          npm ci --prefix packages/mcp
+          npm test
       - name: Integration tests
         run: ctest --preset ci-linux -L integration --output-on-failure

@@ -28,4 +28,4 @@ Keep the `agentgate` schema out of exposed API schemas. Do not put a service-rol
 
 ## Scope of the current tree
 
-Merge is not implemented yet, so approval does not write business rows. That is not a security boundary you should rely on as the product promise; the merge milestone must re-check policy, revision, and scope inside the database transaction.
+Approval does not write business rows. Merge re-checks policy, revision, scope, and tracked-read dependencies inside the database transaction, then the worker applies the approved change. A queued or conflicted proposal is not a committed write.

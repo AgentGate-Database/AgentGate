@@ -11,7 +11,9 @@
     p.lead { margin: 0.35rem 0 0; max-width: 46rem; }
     main { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding: 1rem 1.5rem 2rem; }
     section { background: #fffdf8; border: 1px solid #d9d1c3; border-radius: 8px; padding: 1rem 1.1rem; min-height: 16rem; }
-    h2 { font-size: 1.05rem; margin: 0 0 0.75rem; }
+    section.active { border-color: #1c1915; box-shadow: inset 0 0 0 2px #1c1915; }
+    h2 { font-size: 1.05rem; margin: 0 0 0.35rem; }
+    .actor { margin: 0 0 0.6rem; color: #5c564c; }
     button { font: inherit; margin: 0 0.4rem 0.6rem 0; padding: 0.35rem 0.7rem; background: #1c1915; color: #fffdf8; border: 0; border-radius: 4px; }
     button:disabled { background: #8a8175; }
     pre { white-space: pre-wrap; background: #f6f3ec; padding: 0.75rem; border-radius: 6px; min-height: 7rem; }
@@ -24,47 +26,67 @@
     <p class="lead">An approved proposal is queued. The invoice changes only after the worker commits a receipt. A reverse proposal restores the earlier terms only after its own receipt, and the revision increases.</p>
   </header>
   <main>
-    <section>
+    <section id="intent">
       <h2>Agent intent</h2>
+      <p class="actor">Actor: demo proposer</p>
+      <button id="sample" type="button">Run sample agent</button>
       <button id="prepare" type="button">Prepare sample invoice</button>
       <button id="send" type="button">Send proposal</button>
-      <pre id="intent">No proposal yet.</pre>
+      <pre id="intent-body">No proposal yet.</pre>
     </section>
-    <section>
+    <section id="gate">
       <h2>AgentGate status</h2>
-      <button id="show" type="button">Show submission</button>
+      <p class="actor">Real API status. Showing a submission does not change this.</p>
       <pre id="status">No submission yet.</pre>
     </section>
-    <section>
-      <h2>Company review</h2>
+    <section id="company">
+      <h2>Company dashboard</h2>
+      <p class="actor">Actor: demo reviewer</p>
+      <button id="show" type="button">Show submission</button>
       <button id="approve" type="button">Approve</button>
+      <button id="drift" type="button">Simulate another application changing this record</button>
       <button id="merge" type="button">Merge</button>
       <button id="revert" type="button">Propose revert</button>
       <pre id="review">Waiting for a submission.</pre>
     </section>
-    <section>
+    <section id="business">
       <h2>Business data in Postgres</h2>
-      <pre id="business">Reading…</pre>
+      <pre id="business-body">Reading…</pre>
     </section>
   </main>
   <script>
-    const intent = document.querySelector("#intent");
+    const intent = document.querySelector("#intent-body");
     const status = document.querySelector("#status");
     const review = document.querySelector("#review");
-    const business = document.querySelector("#business");
+    const business = document.querySelector("#business-body");
+    const buttons = [...document.querySelectorAll("button")];
     let polling = false;
 
     function show(node, value) {
       node.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
     }
 
-    async function post(path) {
-      const response = await fetch(path, { method: "POST" });
-      const body = await response.json();
-      if (!response.ok) {
-        throw new Error(body.error ? body.error.message : response.statusText);
+    function activate(id) {
+      document.querySelectorAll("main section").forEach((section) => {
+        section.classList.toggle("active", section.id === id);
+      });
+    }
+
+    function setBusy(busy) {
+      for (const button of buttons) {
+        button.disabled = busy;
       }
-      return body;
+    }
+
+    async function post(path) {
+      setBusy(true);
+      try {
+        const response = await fetch(path, { method: "POST" });
+        const body = await response.json();
+        return { ok: response.ok, body };
+      } finally {
+        setBusy(false);
+      }
     }
 
     async function refreshBusiness() {
@@ -75,10 +97,12 @@
     function describe(body) {
       const execution = body.execution_status;
       const queued = body.state === "queued" && (!execution || execution.receipt === null);
+      const conflicted = body.state === "conflicted";
       return {
         state: body.state,
         committed: body.state === "merged" && execution && execution.receipt !== null,
         queue_note: queued ? "Queued. The business row is not committed yet." : null,
+        conflict_note: conflicted ? "Conflicted. The other application's value was left in place." : null,
         revision: body.revision,
         execution_status: execution,
       };
@@ -97,49 +121,83 @@
     }
 
     document.querySelector("#prepare").addEventListener("click", async () => {
-      show(intent, await post("/api/prepare"));
-      show(status, "No submission yet.");
-      show(review, "Waiting for a submission.");
+      activate("intent");
+      const result = await post("/api/prepare");
+      show(intent, result.ok ? result.body : result.body);
+      if (result.ok) {
+        show(status, "No submission yet.");
+        show(review, "Waiting for a submission.");
+      }
     });
     document.querySelector("#send").addEventListener("click", async () => {
-      const body = await post("/api/propose");
-      show(intent, {
-        pr_id: body.pr_id,
-        state: body.state,
-        revision: body.revision,
-        tracked_read: true,
-      });
-      show(status, describe(body));
+      activate("intent");
+      const result = await post("/api/propose");
+      show(intent, result.body);
+      if (result.ok) {
+        show(status, { state: result.body.state, revision: result.body.revision, pr_id: result.body.pr_id });
+      }
+    });
+    document.querySelector("#sample").addEventListener("click", async () => {
+      activate("intent");
+      const result = await post("/api/sample-agent");
+      show(intent, result.body);
+      if (result.ok) {
+        show(status, {
+          state: result.body.sent.state,
+          revision: result.body.sent.revision,
+          pr_id: result.body.sent.pr_id,
+        });
+        show(review, "Waiting for the company client to fetch the submission.");
+      }
     });
     document.querySelector("#show").addEventListener("click", async () => {
-      show(status, describe(await post("/api/show")));
+      activate("company");
+      const result = await post("/api/show");
+      show(review, result.body);
     });
     document.querySelector("#approve").addEventListener("click", async () => {
-      const body = await post("/api/approve");
-      show(review, { decision: body.decision, state: body.state, wrote_business_row: false });
-      show(status, body);
-      await refreshBusiness();
+      activate("company");
+      const result = await post("/api/approve");
+      show(review, result.body);
+      if (result.ok) {
+        show(status, { decision: result.body.decision, state: result.body.state, wrote_business_row: false });
+        await refreshBusiness();
+      }
+    });
+    document.querySelector("#drift").addEventListener("click", async () => {
+      activate("business");
+      const result = await post("/api/drift");
+      show(business, result.body);
+      if (result.ok) {
+        await refreshBusiness();
+      }
     });
     document.querySelector("#revert").addEventListener("click", async () => {
-      const body = await post("/api/revert");
-      show(intent, {
-        pr_id: body.pr_id,
-        source_pr_id: body.source_pr_id,
-        state: body.state,
-        diff: body.diff,
-      });
-      show(status, describe(body));
-      show(review, "Reverse proposal is waiting for approval.");
-      await refreshBusiness();
+      activate("intent");
+      const result = await post("/api/revert");
+      show(intent, result.ok ? {
+        pr_id: result.body.pr_id,
+        source_pr_id: result.body.source_pr_id,
+        state: result.body.state,
+        diff: result.body.diff,
+      } : result.body);
+      if (result.ok) {
+        show(status, describe(result.body));
+        show(review, "Reverse proposal is waiting for approval.");
+        await refreshBusiness();
+      }
     });
     document.querySelector("#merge").addEventListener("click", async () => {
-      const body = await post("/api/merge");
-      show(review, {
-        http_state: body.state,
-        receipt: body.receipt,
-        note: body.receipt ? "Receipt already committed." : "Accepted into the queue. Not a commit.",
-      });
-      polling = true;
+      activate("company");
+      const result = await post("/api/merge");
+      show(review, result.ok ? {
+        http_state: result.body.state,
+        receipt: result.body.receipt,
+        note: result.body.receipt ? "Receipt already committed." : "Accepted into the queue. Not a commit.",
+      } : result.body);
+      if (result.ok) {
+        polling = true;
+      }
     });
 
     setInterval(() => {

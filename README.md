@@ -13,12 +13,14 @@ AgentGate works with standard Postgres. It also works with Supabase as a Postgre
 
 ## What this tree implements
 
-Milestones 1 and 2 from `AgentGate_Build_Guide.md`:
+Milestones 1 through 6 from `AgentGate_Build_Guide.md`:
 
-- C++20 HTTP API and worker processes, with authoritative checks in SQL.
+- C++20 HTTP API and worker, with authoritative checks in SQL.
 - Private `agentgate` schema, enrollment, and row revision tracking.
 - Bearer credentials, immutable proposal revisions, manual review, idempotency, and audit events.
-- Structured updates addressed by an explicit primary key. Inserts, deletes, merge, tracked reads, webhooks, and the demo dashboard are later milestones.
+- Structured updates addressed by an explicit primary key, tracked reads, deterministic policy, and atomic merge with a receipt.
+- Receipt revert and signed webhooks.
+- A TypeScript SDK, a stdio MCP adapter with the six agent tools, and a local four-panel demo.
 
 ## License
 
@@ -32,7 +34,21 @@ Docker is enough to run the database, migrations, API, and worker. A local C++ t
 docker compose up --build
 ```
 
-The API listens on `http://127.0.0.1:8080`. Compose binds published ports to loopback and uses a disposable database with synthetic invoices when `AGENTGATE_SEED=true` (the default).
+The API listens on `http://127.0.0.1:8080`. Compose binds published ports to loopback and uses a disposable database with synthetic invoices when `AGENTGATE_SEED=true` (the default). This command uses the Compose project `agentgate`.
+
+The demo dashboard is a separate Compose project so its volumes can be removed without deleting the quickstart database:
+
+```bash
+docker compose -f compose.demo.yml --profile demo up --build
+```
+
+The dashboard is `http://127.0.0.1:8090`. Both projects publish the same host ports, so run one at a time. Reset deletes only the `agentgate-demo` project:
+
+```bash
+scripts/reset-demo.sh --yes
+```
+
+That script requires `--yes` and does not run on startup. It leaves the `agentgate` project and its database volume in place.
 
 Check readiness:
 
@@ -82,6 +98,17 @@ ctest --preset brew-debug --output-on-failure
 
 `ctest` expects the Compose database on `127.0.0.1:5432`. Integration tests are skipped when `AGENTGATE_TEST_DATABASE_URL` is unset. The `brew-debug` test preset sets the local URLs.
 
+Node tests cover the SDK paths, the MCP tool list, and the demo guard. The HTTP and MCP equivalence test runs only when the API binary and both database URLs are set:
+
+```bash
+npm install
+npm install --prefix packages/mcp
+export AGENTGATE_API_BIN=build/brew-debug/apps/api/agentgate-api
+export AGENTGATE_TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/agentgate
+export AGENTGATE_TEST_API_DATABASE_URL=postgresql://agentgate_api:local-dev-api-password@127.0.0.1:5432/agentgate
+npm test
+```
+
 Pooler check:
 
 ```bash
@@ -109,16 +136,19 @@ Routes are under `/v1`. Mutations require `Authorization: Bearer <token>` and `I
 
 | Method and route | Behavior |
 | --- | --- |
-| `POST /v1/prs` | Create an immutable update proposal |
+| `POST /v1/reads` | Tracked read of explicit primary keys. Returns a read token. |
+| `POST /v1/prs` | Create an immutable update proposal. Requires the tracked-read token for the demo flow. |
 | `GET /v1/prs` | List PRs visible to the caller |
 | `GET /v1/prs/{id}` | Metadata, revision, policy, approvals |
 | `GET /v1/prs/{id}/diff` | Authorized before/after values |
 | `POST /v1/prs/{id}/revisions` | New immutable revision; invalidates approvals |
 | `POST /v1/prs/{id}/approve` | Approve the exact active revision and hash |
 | `POST /v1/prs/{id}/reject` | Reject the exact active revision and hash |
+| `POST /v1/prs/{id}/revert` | Propose the inverse of a merged receipt |
+| `POST /v1/prs/{id}/merge` | Queue the approved revision. The worker commits it. |
 | `GET /v1/prs/{id}/events` | Audit history |
-
-`POST /v1/prs/{id}/merge`, reads, and webhooks are not registered yet.
+| `POST /v1/webhooks` | Register a signed webhook. Administrator only. The secret is returned once. |
+| `GET /v1/webhooks` | List destinations. The secret is omitted. |
 
 Contracts live in `packages/contracts`. See `docs/supported-schema.md` and `docs/architecture/permission-model.md`.
 
@@ -127,22 +157,25 @@ Contracts live in `packages/contracts`. See `docs/supported-schema.md` and `docs
 | Path | Contents |
 | --- | --- |
 | `apps/api` | C++ HTTP API |
-| `apps/worker` | C++ worker (expiry sweep; merge arrives later) |
+| `apps/worker` | C++ worker: expiry, merge, and webhook delivery |
 | `core` | Shared services, pool, errors |
 | `packages/db` | Migrations, grants, seed |
 | `packages/contracts` | OpenAPI and JSON Schema |
-| `packages/sdk` | TypeScript client scaffold |
-| `packages/mcp` | MCP adapter scaffold |
+| `packages/sdk` | TypeScript HTTP client |
+| `packages/mcp` | Stdio MCP adapter over that client |
 | `tests` | Catch2 unit and integration tests |
-| `examples/supabase` | Supabase notes (full walkthrough later) |
-| `examples/demo-dashboard` | Reference UI placeholder |
+| `examples/supabase` | Local Supabase-compatibility checks |
+| `examples/demo-dashboard` | Four-panel reference UI |
 | `docs/architecture` | Decision records and the permission model |
 
 ## Limitations
 
 - Only `update` of existing rows is accepted. `insert` and `delete` return `UNSUPPORTED_OPERATION`.
-- Non-empty `read_tokens` return `UNSUPPORTED_OPERATION` until tracked reads exist. Do not send them expecting dependency checks.
-- Merge, reverse PRs, webhooks, the TypeScript SDK, the MCP adapter, and the four-panel demo are not implemented yet.
-- The API process is the trust boundary. It passes the authenticated principal into SQL. Database role passwords must stay on the server.
+- Reads address explicit primary keys. Range queries, aggregates, absence checks, and unrestricted SQL are not supported.
+- Approval does not write the business row. The worker writes it when a queued merge commits, and the receipt is the record of that write. A queued or conflicted proposal is not a committed write.
+- The agent-facing MCP server exposes `read_rows`, `propose_change`, `get_pr`, `get_pr_diff`, `list_prs`, and `get_pr_status`. It does not expose approve, reject, merge, policy, or webhook tools, and it adds no database role.
 - A proposer cannot approve their own PR. Approval requires a reviewer principal with an administrator-managed assignment.
+- The demo proxy starts only when `AGENTGATE_DEMO=1` and `DATABASE_URL` points at `localhost`, `127.0.0.1`, or the Compose hostname `db`. The browser does not receive bearer tokens, the database password, or webhook secrets.
+- The API process is the trust boundary. It passes the authenticated principal into SQL. Database role passwords must stay on the server.
 - Enrollment adds `agentgate_revision` and a trigger. See `docs/supported-schema.md` before enrolling a table that clients read with `SELECT *`.
+- `external_issuer` and `external_subject` are unused. Supabase Auth JWT review is out of scope.

@@ -2,7 +2,7 @@
   "name": "@agentgate/sdk",
   "version": "0.0.0",
   "private": true,
-  "description": "AgentGate TypeScript client scaffold. The implementation arrives with the developer-integration milestone.",
+  "description": "TypeScript client for the AgentGate HTTP API. It does not open a database connection.",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts"

@@ -1,3 +1,5 @@
 # @agentgate/mcp
 
-Scaffold for the MCP adapter. It will be a thin client of the C++ HTTP API and will not implement a second approval or merge path. Human approval and policy administration stay off the agent-facing tool list.
+Stdio MCP adapter. It calls the C++ HTTP API through `@agentgate/sdk` with `AGENTGATE_API_URL` and `AGENTGATE_TOKEN`. It does not connect to Postgres and adds no database role.
+
+Tools: `read_rows`, `propose_change`, `get_pr`, `get_pr_diff`, `list_prs`, `get_pr_status`. Approve, reject, policy, webhook, and credential tools are not registered.

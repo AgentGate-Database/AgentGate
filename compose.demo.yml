@@ -1,0 +1,4 @@
+name: agentgate-demo
+
+include:
+  - compose.yml
