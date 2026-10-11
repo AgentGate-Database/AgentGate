@@ -8,16 +8,14 @@
     body { font-family: "Iowan Old Style", Palatino, Georgia, serif; margin: 0; background: #f4f1ea; color: #1c1915; }
     header { padding: 1.25rem 1.5rem 0.25rem; }
     h1 { font-size: 1.6rem; margin: 0; }
-    p.lead, p.banner { margin: 0.35rem 0 0; max-width: 46rem; }
-    p.banner { background: #fffdf8; border: 1px solid #d9d1c3; border-radius: 8px; padding: 0.75rem 0.9rem; }
-    p.steps { margin: 0.75rem 0 0; }
+    p.lead { margin: 0.35rem 0 0; max-width: 46rem; }
     main { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding: 1rem 1.5rem 2rem; }
     section { background: #fffdf8; border: 1px solid #d9d1c3; border-radius: 8px; padding: 1rem 1.1rem; min-height: 16rem; }
     section.active { border-color: #1c1915; box-shadow: inset 0 0 0 2px #1c1915; }
-    h2 { font-size: 1.05rem; margin: 0 0 0.35rem; }
-    .actor { margin: 0 0 0.6rem; color: #5c564c; }
-    .logos { display: flex; flex-wrap: wrap; align-items: center; gap: 0.85rem; margin: 0 0 0.75rem; }
-    .logo { font-family: system-ui, sans-serif; font-weight: 650; letter-spacing: -0.03em; line-height: 1; }
+    h2 { font-size: 1.05rem; margin: 0 0 0.75rem; }
+    .logos { display: flex; flex-wrap: wrap; align-items: center; gap: 0.85rem; margin: 0 0 0.85rem; }
+    .logo { font-family: system-ui, sans-serif; font-weight: 650; letter-spacing: -0.03em; line-height: 1; opacity: 0.35; }
+    .logo.speaking { opacity: 1; }
     .logo-openai { font-size: 0.95rem; }
     .logo-anthropic { font-family: Georgia, serif; font-weight: 500; font-size: 0.95rem; }
     .logo-google { font-size: 1rem; font-weight: 500; }
@@ -35,13 +33,14 @@
     .logo-microsoft i:nth-child(3) { background: #00a4ef; }
     .logo-microsoft i:nth-child(4) { background: #ffb900; }
     .logo-cursor { font-size: 0.95rem; }
-    .request-row { display: flex; align-items: flex-start; gap: 0.6rem; }
-    .request-row pre { flex: 1; margin: 0; }
-    #request-toggle { margin: 0; white-space: nowrap; }
-    button { font: inherit; margin: 0 0.4rem 0.6rem 0; padding: 0.35rem 0.7rem; background: #1c1915; color: #fffdf8; border: 0; border-radius: 4px; }
-    button:disabled { background: #8a8175; }
-    pre { white-space: pre-wrap; background: #f6f3ec; padding: 0.75rem; border-radius: 6px; min-height: 7rem; }
-    a { color: #1c1915; }
+    .request { min-height: 4.5rem; margin: 0; background: #f6f3ec; border-radius: 6px; padding: 0.85rem 0.9rem; }
+    table { width: 100%; border-collapse: collapse; font-family: system-ui, sans-serif; font-size: 0.82rem; }
+    th, td { text-align: left; padding: 0.45rem 0.45rem; border-bottom: 1px solid #e7dfd2; vertical-align: top; }
+    th { color: #5c564c; font-weight: 650; font-size: 0.75rem; letter-spacing: 0.02em; }
+    tr.changed td { background: #f3e6c4; }
+    td.pending { color: #8a5a12; }
+    td.approved { color: #1f6b3a; }
+    td.declined { color: #8d2f2f; }
     @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -49,265 +48,202 @@
   <header>
     <h1>AgentGate</h1>
     <p class="lead">Postgres pull requests for AI agents.</p>
-    <p class="steps">
-      <button id="back" type="button">Back</button>
-      <button id="next" type="button">Next</button>
-      <span id="step-label"></span>
-    </p>
   </header>
   <main>
     <section id="intent">
       <h2>1. AI Agent</h2>
       <div class="logos" aria-label="AI agent companies">
-        <span class="logo logo-openai">OpenAI</span>
-        <span class="logo logo-anthropic">Anthropic</span>
-        <span class="logo logo-google" aria-label="Google"><span>G</span><span>o</span><span>o</span><span>g</span><span>l</span><span>e</span></span>
-        <span class="logo logo-microsoft"><span><i></i><i></i><i></i><i></i></span>Microsoft</span>
-        <span class="logo logo-cursor">Cursor</span>
+        <span class="logo logo-openai" data-agent="OpenAI">OpenAI</span>
+        <span class="logo logo-anthropic" data-agent="Anthropic">Anthropic</span>
+        <span class="logo logo-google" data-agent="Google" aria-label="Google"><span>G</span><span>o</span><span>o</span><span>g</span><span>l</span><span>e</span></span>
+        <span class="logo logo-microsoft" data-agent="Microsoft"><span><i></i><i></i><i></i><i></i></span>Microsoft</span>
+        <span class="logo logo-cursor" data-agent="Cursor">Cursor</span>
       </div>
-      <div class="request-row">
-        <pre id="intent-body"></pre>
-        <button id="request-toggle" type="button" hidden>View request</button>
-      </div>
+      <p class="request" id="intent-body"></p>
     </section>
     <section id="gate">
-      <h2>AgentGate status</h2>
-      <p class="actor">Illustrated status. Showing a submission does not change this.</p>
-      <pre id="status"></pre>
+      <h2>2. AgentGate status</h2>
+      <table>
+        <thead>
+          <tr><th>Agent</th><th>Request</th><th>Status</th></tr>
+        </thead>
+        <tbody id="gate-body"></tbody>
+      </table>
     </section>
     <section id="company">
-      <h2>Company dashboard</h2>
-      <p class="actor">Actor: demo reviewer</p>
-      <button id="show" type="button">Show submission</button>
-      <button id="approve" type="button">Approve</button>
-      <button id="drift" type="button">Simulate another application changing this record</button>
-      <button id="merge" type="button">Merge</button>
-      <button id="revert" type="button" disabled>Propose revert</button>
-      <pre id="review"></pre>
+      <h2>3. Company dashboard</h2>
+      <table>
+        <thead>
+          <tr><th>Agent</th><th>Request</th><th>Status</th></tr>
+        </thead>
+        <tbody id="company-body"></tbody>
+      </table>
     </section>
     <section id="business">
-      <h2>Business data in Postgres</h2>
-      <pre id="business-body"></pre>
+      <h2>4. Business data in Postgres</h2>
+      <table>
+        <thead>
+          <tr><th>Name</th><th>Date of birth</th><th>Email</th></tr>
+        </thead>
+        <tbody id="business-body"></tbody>
+      </table>
     </section>
   </main>
   <script>
-    const invoice = { id: "482", tenant_id: "acme" };
-    const prId = "e3ba10e7-08da-467f-9fb5-1fc839bfcb7f";
-    const contentHash = "84fdad8cc4c58442d07705c7a87056a9a9c483702f77da8b4f38e8455473f451";
-    const before = { ...invoice, payment_terms: "net_45", revision: "6" };
-    const afterMerge = { ...invoice, payment_terms: "net_60", revision: "7" };
-    const afterDrift = { ...invoice, payment_terms: "net_30", revision: "9" };
-
-    const proposal = {
-      actor: "demo proposer",
-      prepared: {
-        actor: "demo proposer",
-        mcp: {
-          tool: "read_rows",
-          request: {
-            expires_in_seconds: 3600,
-            reads: [{ schema: "public", table: "invoices", key: { id: "482" }, columns: ["payment_terms"] }]
-          },
-          response: {
-            rows: [{ key: { id: "482" }, revision: "6", schema: "public", table: "invoices", values: { payment_terms: "net_45" } }],
-            token: "[redacted]"
-          }
-        }
-      },
-      sent: {
-        actor: "demo proposer",
-        mcp: {
-          tool: "propose_change",
-          request: {
-            title: "Correct invoice payment terms",
-            reason: "Invoice terms differ from the signed purchase order.",
-            read_tokens: ["[redacted]"],
-            changes: [{
-              operation: "update",
-              schema: "public",
-              table: "invoices",
-              key: { id: "482" },
-              expected_revision: "6",
-              set: { payment_terms: "net_60" }
-            }]
-          },
-          response: {
-            pr_id: prId,
-            state: "pending_review",
-            revision: 1,
-            content_hash: contentHash,
-            policy_decision: "manual_review_required",
-            explanation: "Pending review. The business row has not been written."
-          }
-        }
-      }
-    };
-
-    const diff = {
-      changes: [{
-        expected_revision: "6",
-        fields: [{ after: "net_60", before: "net_45", column: "payment_terms", type: "text" }],
-        key: { id: "482" },
-        operation: "update",
-        schema: "public",
-        table: "invoices"
-      }]
-    };
-
-    const frames = [
+    const beat = 1100;
+    const seed = [
+      { name: "Maya Chen", date_of_birth: "03/14/1990", email: "maya.chen@example.com" },
+      { name: "Jordan Lee", date_of_birth: "11/02/1988", email: "jordan.lee@example.com" },
+      { name: "Sam Patel", date_of_birth: "01/09/1994", email: "sam.patel@example.com" }
+    ];
+    const requests = [
       {
-        active: "intent",
-        label: "AI Agent makes a request to the database.",
-        nextControl: "next",
-        intent: "Update invoice 482 payment terms to net 60.",
-        request: { invoice: 482, payment_terms: "net_60" },
-        status: "No submission yet.",
-        review: "Waiting for a submission.",
-        business: before
+        agent: "OpenAI",
+        text: "Update Maya Chen’s date of birth to 06/21/1995.",
+        decision: "Approved",
+        apply: (rows) => updateRow(rows, "Maya Chen", { date_of_birth: "06/21/1995" })
       },
       {
-        active: "intent",
-        label: "Run sample agent. The proposal is stored. The invoice is unchanged.",
-        nextControl: "show",
-        intent: proposal,
-        status: { state: "pending_review", revision: 1, pr_id: prId },
-        review: "Waiting for the company client to fetch the submission.",
-        business: before
+        agent: "Anthropic",
+        text: "Add Avery Kim, born 08/03/1992.",
+        decision: "Approved",
+        apply: (rows) => rows.push({ name: "Avery Kim", date_of_birth: "08/03/1992", email: "avery.kim@example.com", changed: true })
       },
       {
-        active: "company",
-        label: "Show submission. This proposal was already stored.",
-        nextControl: "approve",
-        intent: proposal,
-        status: { state: "pending_review", revision: 1, pr_id: prId },
-        review: {
-          actor: "demo reviewer",
-          note: "Fetched for review. This proposal was already stored.",
-          title: "Correct invoice payment terms",
-          state: "pending_review",
-          revision: 1,
-          content_hash: contentHash,
-          diff
-        },
-        business: before
+        agent: "Google",
+        text: "Update Jordan Lee’s email to jordan@lee.dev.",
+        decision: "Declined",
+        apply: null
       },
       {
-        active: "company",
-        label: "Approve. The business row was not written.",
-        nextControl: "merge",
-        intent: proposal,
-        status: { decision: "approved", state: "approved", wrote_business_row: false },
-        review: {
-          actor: "demo reviewer",
-          decision: "approved",
-          state: "approved",
-          revision: 1,
-          content_hash: contentHash,
-          wrote_business_row: false
-        },
-        business: before
+        agent: "Microsoft",
+        text: "Update Sam Patel’s date of birth to 04/17/1991.",
+        decision: "Approved",
+        apply: (rows) => updateRow(rows, "Sam Patel", { date_of_birth: "04/17/1991" })
       },
       {
-        active: "company",
-        label: "Merge. Accepted into the queue. Not a commit.",
-        nextControl: "next",
-        intent: proposal,
-        status: { state: "queued", committed: false, queue_note: "Queued. The business row is not committed yet." },
-        review: { http_state: "queued", receipt: null, note: "Accepted into the queue. Not a commit." },
-        business: before
-      },
-      {
-        active: "gate",
-        label: "Receipt. The invoice is now net_60 at revision 7.",
-        nextControl: "drift",
-        intent: proposal,
-        status: {
-          state: "merged",
-          committed: true,
-          revision: 1,
-          execution_status: {
-            state: "completed",
-            receipt: {
-              pr_id: prId,
-              revision: 1,
-              content_hash: contentHash,
-              rows: [{ key: { id: "482" }, revision: "7", before: { payment_terms: "net_45" }, after: { payment_terms: "net_60" } }]
-            }
-          }
-        },
-        review: { http_state: "queued", receipt: null, note: "Accepted into the queue. Not a commit." },
-        business: afterMerge
-      },
-      {
-        active: "business",
-        label: "Another application set net_30. The following merge conflicted, and that value remains.",
-        nextControl: null,
-        intent: proposal,
-        status: {
-          state: "conflicted",
-          committed: false,
-          conflict_note: "Conflicted. The other application's value was left in place.",
-          execution_status: { state: "failed", receipt: null }
-        },
-        review: { http_state: "queued", receipt: null, note: "Accepted into the queue. Not a commit." },
-        business: afterDrift
+        agent: "Cursor",
+        text: "Add Riley Nguyen, born 12/28/1996.",
+        decision: "Approved",
+        apply: (rows) => rows.push({ name: "Riley Nguyen", date_of_birth: "12/28/1996", email: "riley.nguyen@example.com", changed: true })
       }
     ];
 
     const intent = document.querySelector("#intent-body");
-    const status = document.querySelector("#status");
-    const review = document.querySelector("#review");
-    const business = document.querySelector("#business-body");
-    const stepLabel = document.querySelector("#step-label");
-    const requestToggle = document.querySelector("#request-toggle");
-    let index = 0;
-    let showRequest = false;
+    const gateBody = document.querySelector("#gate-body");
+    const companyBody = document.querySelector("#company-body");
+    const businessBody = document.querySelector("#business-body");
+    let customers = [];
+    let gateItems = [];
+    let companyItems = [];
 
-    function show(node, value) {
-      node.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+    function sleep(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
     }
 
-    function render() {
-      const frame = frames[index];
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+    }
+
+    function updateRow(rows, name, fields) {
+      const row = rows.find((item) => item.name === name);
+      Object.assign(row, fields, { changed: true });
+    }
+
+    function highlight(id) {
       document.querySelectorAll("main section").forEach((section) => {
-        section.classList.toggle("active", section.id === frame.active);
+        section.classList.toggle("active", section.id === id);
       });
-      const hasRequest = Object.prototype.hasOwnProperty.call(frame, "request");
-      requestToggle.hidden = !hasRequest;
-      requestToggle.textContent = showRequest ? "View text" : "View request";
-      requestToggle.setAttribute("aria-pressed", String(showRequest && hasRequest));
-      show(intent, hasRequest && showRequest ? frame.request : frame.intent);
-      show(status, frame.status);
-      show(review, frame.review);
-      show(business, frame.business);
-      stepLabel.textContent = "Step " + (index + 1) + " of " + frames.length + ". " + frame.label;
-      document.querySelector("#back").disabled = index === 0;
-      document.querySelector("#next").disabled = index === frames.length - 1;
-      for (const id of ["show", "approve", "merge", "drift"]) {
-        document.querySelector("#" + id).disabled = frame.nextControl !== id;
+    }
+
+    function showAgent(request) {
+      document.querySelectorAll(".logo").forEach((logo) => {
+        logo.classList.toggle("speaking", logo.dataset.agent === request.agent);
+      });
+      intent.textContent = request.text;
+    }
+
+    function statusClass(status) {
+      if (status === "Approved") return "approved";
+      if (status === "Declined") return "declined";
+      return "pending";
+    }
+
+    function rowsHtml(items) {
+      return items.map((item) =>
+        "<tr><td>" + escapeHtml(item.agent) + "</td><td>" + escapeHtml(item.text) +
+        "</td><td class=\"" + statusClass(item.status) + "\">" + escapeHtml(item.status) + "</td></tr>"
+      ).join("");
+    }
+
+    function renderSubmissions() {
+      gateBody.innerHTML = rowsHtml(gateItems);
+      companyBody.innerHTML = rowsHtml(companyItems);
+    }
+
+    function renderCustomers() {
+      businessBody.innerHTML = customers.map((row) =>
+        "<tr" + (row.changed ? " class=\"changed\"" : "") + "><td>" + escapeHtml(row.name) +
+        "</td><td>" + escapeHtml(row.date_of_birth) + "</td><td>" + escapeHtml(row.email) + "</td></tr>"
+      ).join("");
+    }
+
+    function reset() {
+      customers = seed.map((row) => ({ ...row }));
+      gateItems = [];
+      companyItems = [];
+      intent.textContent = "";
+      document.querySelectorAll(".logo").forEach((logo) => logo.classList.remove("speaking"));
+      renderSubmissions();
+      renderCustomers();
+      highlight("");
+    }
+
+    async function play(request) {
+      highlight("intent");
+      showAgent(request);
+      await sleep(beat);
+
+      highlight("gate");
+      gateItems.push({ agent: request.agent, text: request.text, status: "Pending review" });
+      renderSubmissions();
+      await sleep(beat);
+
+      highlight("company");
+      companyItems.push({ agent: request.agent, text: request.text, status: "Pending review" });
+      renderSubmissions();
+      await sleep(beat);
+
+      gateItems[gateItems.length - 1].status = request.decision;
+      companyItems[companyItems.length - 1].status = request.decision;
+      renderSubmissions();
+      await sleep(beat);
+
+      if (request.decision === "Approved") {
+        highlight("business");
+        customers.forEach((row) => { row.changed = false; });
+        request.apply(customers);
+        renderCustomers();
+        await sleep(beat);
       }
     }
 
-    function go(nextIndex) {
-      index = Math.max(0, Math.min(frames.length - 1, nextIndex));
-      render();
-    }
-
-    document.querySelector("#back").addEventListener("click", () => go(index - 1));
-    document.querySelector("#next").addEventListener("click", () => go(index + 1));
-    requestToggle.addEventListener("click", () => {
-      showRequest = !showRequest;
-      render();
-    });
-    for (const id of ["show", "approve", "merge", "drift"]) {
-      document.querySelector("#" + id).addEventListener("click", () => {
-        if (frames[index].nextControl === id) {
-          go(index + 1);
+    async function run() {
+      while (true) {
+        reset();
+        await sleep(beat);
+        for (const request of requests) {
+          await play(request);
         }
-      });
+        await sleep(beat);
+      }
     }
 
-    render();
+    reset();
+    run();
   </script>
 </body>
 </html>
