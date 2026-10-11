@@ -36,7 +36,9 @@ docker compose up --build
 
 The API listens on `http://127.0.0.1:8080`. Compose binds published ports to loopback and uses a disposable database with synthetic invoices when `AGENTGATE_SEED=true` (the default). This command uses the Compose project `agentgate`.
 
-The demo dashboard is a separate Compose project so its volumes can be removed without deleting the quickstart database:
+View the illustrated walkthrough at `examples/walkthrough/index.html`. It is a static page: the four panels step through a fixed invoice story and do not call the API. After the GitHub organization exists, GitHub Pages publishes that folder at `https://<agentgate-org>.github.io/agentgate/`. Enabling Pages in the repository settings is a separate owner step.
+
+The live demo is a separate Compose project so its volumes can be removed without deleting the quickstart database:
 
 ```bash
 docker compose -f compose.demo.yml --profile demo up --build
@@ -165,7 +167,8 @@ Contracts live in `packages/contracts`. See `docs/supported-schema.md` and `docs
 | `packages/mcp` | Stdio MCP adapter over that client |
 | `tests` | Catch2 unit and integration tests |
 | `examples/supabase` | Local Supabase-compatibility checks |
-| `examples/demo-dashboard` | Four-panel reference UI |
+| `examples/walkthrough` | Static four-panel illustration |
+| `examples/demo-dashboard` | Live four-panel demo |
 | `docs/architecture` | Decision records and the permission model |
 
 ## Limitations

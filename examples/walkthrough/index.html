@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AgentGate walkthrough</title>
+  <style>
+    body { font-family: "Iowan Old Style", Palatino, Georgia, serif; margin: 0; background: #f4f1ea; color: #1c1915; }
+    header { padding: 1.25rem 1.5rem 0.25rem; }
+    h1 { font-size: 1.6rem; margin: 0; }
+    p.lead, p.banner { margin: 0.35rem 0 0; max-width: 46rem; }
+    p.banner { background: #fffdf8; border: 1px solid #d9d1c3; border-radius: 8px; padding: 0.75rem 0.9rem; }
+    p.steps { margin: 0.75rem 0 0; }
+    main { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding: 1rem 1.5rem 2rem; }
+    section { background: #fffdf8; border: 1px solid #d9d1c3; border-radius: 8px; padding: 1rem 1.1rem; min-height: 16rem; }
+    section.active { border-color: #1c1915; box-shadow: inset 0 0 0 2px #1c1915; }
+    h2 { font-size: 1.05rem; margin: 0 0 0.35rem; }
+    .actor { margin: 0 0 0.6rem; color: #5c564c; }
+    button { font: inherit; margin: 0 0.4rem 0.6rem 0; padding: 0.35rem 0.7rem; background: #1c1915; color: #fffdf8; border: 0; border-radius: 4px; }
+    button:disabled { background: #8a8175; }
+    pre { white-space: pre-wrap; background: #f6f3ec; padding: 0.75rem; border-radius: 6px; min-height: 7rem; }
+    a { color: #1c1915; }
+    @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>AgentGate</h1>
+    <p class="lead">Postgres pull requests for AI agents. A proposal is reviewed, then merged. The business row changes only when a receipt records the commit.</p>
+    <p class="banner">This page is an illustration. The buttons step through a fixed story for invoice 482. They do not call an API. Run the live demo locally with <code>docker compose -f compose.demo.yml --profile demo up --build</code>, then open <a href="http://127.0.0.1:8090">http://127.0.0.1:8090</a>. After this repository is published, the rendered page is <code>https://&lt;agentgate-org&gt;.github.io/agentgate/</code>.</p>
+    <p class="steps">
+      <button id="back" type="button">Back</button>
+      <button id="next" type="button">Next</button>
+      <span id="step-label"></span>
+    </p>
+  </header>
+  <main>
+    <section id="intent">
+      <h2>Agent intent</h2>
+      <p class="actor">Actor: demo proposer</p>
+      <button id="sample" type="button">Run sample agent</button>
+      <button id="prepare" type="button" disabled>Prepare sample invoice</button>
+      <button id="send" type="button" disabled>Send proposal</button>
+      <pre id="intent-body"></pre>
+    </section>
+    <section id="gate">
+      <h2>AgentGate status</h2>
+      <p class="actor">Illustrated status. Showing a submission does not change this.</p>
+      <pre id="status"></pre>
+    </section>
+    <section id="company">
+      <h2>Company dashboard</h2>
+      <p class="actor">Actor: demo reviewer</p>
+      <button id="show" type="button">Show submission</button>
+      <button id="approve" type="button">Approve</button>
+      <button id="drift" type="button">Simulate another application changing this record</button>
+      <button id="merge" type="button">Merge</button>
+      <button id="revert" type="button" disabled>Propose revert</button>
+      <pre id="review"></pre>
+    </section>
+    <section id="business">
+      <h2>Business data in Postgres</h2>
+      <pre id="business-body"></pre>
+    </section>
+  </main>
+  <script>
+    const invoice = { id: "482", tenant_id: "acme" };
+    const prId = "e3ba10e7-08da-467f-9fb5-1fc839bfcb7f";
+    const contentHash = "84fdad8cc4c58442d07705c7a87056a9a9c483702f77da8b4f38e8455473f451";
+    const before = { ...invoice, payment_terms: "net_45", revision: "6" };
+    const afterMerge = { ...invoice, payment_terms: "net_60", revision: "7" };
+    const afterDrift = { ...invoice, payment_terms: "net_30", revision: "9" };
+
+    const proposal = {
+      actor: "demo proposer",
+      prepared: {
+        actor: "demo proposer",
+        mcp: {
+          tool: "read_rows",
+          request: {
+            expires_in_seconds: 3600,
+            reads: [{ schema: "public", table: "invoices", key: { id: "482" }, columns: ["payment_terms"] }]
+          },
+          response: {
+            rows: [{ key: { id: "482" }, revision: "6", schema: "public", table: "invoices", values: { payment_terms: "net_45" } }],
+            token: "[redacted]"
+          }
+        }
+      },
+      sent: {
+        actor: "demo proposer",
+        mcp: {
+          tool: "propose_change",
+          request: {
+            title: "Correct invoice payment terms",
+            reason: "Invoice terms differ from the signed purchase order.",
+            read_tokens: ["[redacted]"],
+            changes: [{
+              operation: "update",
+              schema: "public",
+              table: "invoices",
+              key: { id: "482" },
+              expected_revision: "6",
+              set: { payment_terms: "net_60" }
+            }]
+          },
+          response: {
+            pr_id: prId,
+            state: "pending_review",
+            revision: 1,
+            content_hash: contentHash,
+            policy_decision: "manual_review_required",
+            explanation: "Pending review. The business row has not been written."
+          }
+        }
+      }
+    };
+
+    const diff = {
+      changes: [{
+        expected_revision: "6",
+        fields: [{ after: "net_60", before: "net_45", column: "payment_terms", type: "text" }],
+        key: { id: "482" },
+        operation: "update",
+        schema: "public",
+        table: "invoices"
+      }]
+    };
+
+    const frames = [
+      {
+        active: "business",
+        label: "Starting state, before any proposal",
+        nextControl: "sample",
+        intent: "No proposal yet.",
+        status: "No submission yet.",
+        review: "Waiting for a submission.",
+        business: before
+      },
+      {
+        active: "intent",
+        label: "Run sample agent. The proposal is stored. The invoice is unchanged.",
+        nextControl: "show",
+        intent: proposal,
+        status: { state: "pending_review", revision: 1, pr_id: prId },
+        review: "Waiting for the company client to fetch the submission.",
+        business: before
+      },
+      {
+        active: "company",
+        label: "Show submission. This proposal was already stored.",
+        nextControl: "approve",
+        intent: proposal,
+        status: { state: "pending_review", revision: 1, pr_id: prId },
+        review: {
+          actor: "demo reviewer",
+          note: "Fetched for review. This proposal was already stored.",
+          title: "Correct invoice payment terms",
+          state: "pending_review",
+          revision: 1,
+          content_hash: contentHash,
+          diff
+        },
+        business: before
+      },
+      {
+        active: "company",
+        label: "Approve. The business row was not written.",
+        nextControl: "merge",
+        intent: proposal,
+        status: { decision: "approved", state: "approved", wrote_business_row: false },
+        review: {
+          actor: "demo reviewer",
+          decision: "approved",
+          state: "approved",
+          revision: 1,
+          content_hash: contentHash,
+          wrote_business_row: false
+        },
+        business: before
+      },
+      {
+        active: "company",
+        label: "Merge. Accepted into the queue. Not a commit.",
+        nextControl: "next",
+        intent: proposal,
+        status: { state: "queued", committed: false, queue_note: "Queued. The business row is not committed yet." },
+        review: { http_state: "queued", receipt: null, note: "Accepted into the queue. Not a commit." },
+        business: before
+      },
+      {
+        active: "gate",
+        label: "Receipt. The invoice is now net_60 at revision 7.",
+        nextControl: "drift",
+        intent: proposal,
+        status: {
+          state: "merged",
+          committed: true,
+          revision: 1,
+          execution_status: {
+            state: "completed",
+            receipt: {
+              pr_id: prId,
+              revision: 1,
+              content_hash: contentHash,
+              rows: [{ key: { id: "482" }, revision: "7", before: { payment_terms: "net_45" }, after: { payment_terms: "net_60" } }]
+            }
+          }
+        },
+        review: { http_state: "queued", receipt: null, note: "Accepted into the queue. Not a commit." },
+        business: afterMerge
+      },
+      {
+        active: "business",
+        label: "Another application set net_30. The following merge conflicted, and that value remains.",
+        nextControl: null,
+        intent: proposal,
+        status: {
+          state: "conflicted",
+          committed: false,
+          conflict_note: "Conflicted. The other application's value was left in place.",
+          execution_status: { state: "failed", receipt: null }
+        },
+        review: { http_state: "queued", receipt: null, note: "Accepted into the queue. Not a commit." },
+        business: afterDrift
+      }
+    ];
+
+    const intent = document.querySelector("#intent-body");
+    const status = document.querySelector("#status");
+    const review = document.querySelector("#review");
+    const business = document.querySelector("#business-body");
+    const stepLabel = document.querySelector("#step-label");
+    let index = 0;
+
+    function show(node, value) {
+      node.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+    }
+
+    function render() {
+      const frame = frames[index];
+      document.querySelectorAll("main section").forEach((section) => {
+        section.classList.toggle("active", section.id === frame.active);
+      });
+      show(intent, frame.intent);
+      show(status, frame.status);
+      show(review, frame.review);
+      show(business, frame.business);
+      stepLabel.textContent = "Step " + (index + 1) + " of " + frames.length + ". " + frame.label;
+      document.querySelector("#back").disabled = index === 0;
+      document.querySelector("#next").disabled = index === frames.length - 1;
+      for (const id of ["sample", "show", "approve", "merge", "drift"]) {
+        document.querySelector("#" + id).disabled = frame.nextControl !== id;
+      }
+    }
+
+    function go(nextIndex) {
+      index = Math.max(0, Math.min(frames.length - 1, nextIndex));
+      render();
+    }
+
+    document.querySelector("#back").addEventListener("click", () => go(index - 1));
+    document.querySelector("#next").addEventListener("click", () => go(index + 1));
+    for (const id of ["sample", "show", "approve", "merge", "drift"]) {
+      document.querySelector("#" + id).addEventListener("click", () => {
+        if (frames[index].nextControl === id) {
+          go(index + 1);
+        }
+      });
+    }
+
+    render();
+  </script>
+</body>
+</html>

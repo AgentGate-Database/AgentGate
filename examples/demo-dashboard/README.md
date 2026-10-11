@@ -1,5 +1,7 @@
 # Demo dashboard
 
+This is the live local demo. The static illustration, which does not call the API, is `examples/walkthrough/index.html`.
+
 Four panels on one page: agent intent, AgentGate status, company review, and the invoice row in Postgres. The browser talks only to this proxy.
 
 Prepare, send, and **Run sample agent** use a real MCP client. Show, approve, merge, and propose revert use the TypeScript SDK over HTTP. The reviewer token is used only for approve. Actors are the fixed demo proposer and demo reviewer.
