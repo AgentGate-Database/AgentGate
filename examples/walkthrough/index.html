@@ -16,6 +16,28 @@
     section.active { border-color: #1c1915; box-shadow: inset 0 0 0 2px #1c1915; }
     h2 { font-size: 1.05rem; margin: 0 0 0.35rem; }
     .actor { margin: 0 0 0.6rem; color: #5c564c; }
+    .logos { display: flex; flex-wrap: wrap; align-items: center; gap: 0.85rem; margin: 0 0 0.75rem; }
+    .logo { font-family: system-ui, sans-serif; font-weight: 650; letter-spacing: -0.03em; line-height: 1; }
+    .logo-openai { font-size: 0.95rem; }
+    .logo-anthropic { font-family: Georgia, serif; font-weight: 500; font-size: 0.95rem; }
+    .logo-google { font-size: 1rem; font-weight: 500; }
+    .logo-google span:nth-child(1) { color: #4285f4; }
+    .logo-google span:nth-child(2) { color: #ea4335; }
+    .logo-google span:nth-child(3) { color: #fbbc05; }
+    .logo-google span:nth-child(4) { color: #4285f4; }
+    .logo-google span:nth-child(5) { color: #34a853; }
+    .logo-google span:nth-child(6) { color: #ea4335; }
+    .logo-microsoft { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.95rem; }
+    .logo-microsoft span { display: inline-flex; gap: 2px; width: 16px; height: 16px; flex-wrap: wrap; }
+    .logo-microsoft i { display: block; width: 7px; height: 7px; }
+    .logo-microsoft i:nth-child(1) { background: #f25022; }
+    .logo-microsoft i:nth-child(2) { background: #7fba00; }
+    .logo-microsoft i:nth-child(3) { background: #00a4ef; }
+    .logo-microsoft i:nth-child(4) { background: #ffb900; }
+    .logo-cursor { font-size: 0.95rem; }
+    .request-row { display: flex; align-items: flex-start; gap: 0.6rem; }
+    .request-row pre { flex: 1; margin: 0; }
+    #request-toggle { margin: 0; white-space: nowrap; }
     button { font: inherit; margin: 0 0.4rem 0.6rem 0; padding: 0.35rem 0.7rem; background: #1c1915; color: #fffdf8; border: 0; border-radius: 4px; }
     button:disabled { background: #8a8175; }
     pre { white-space: pre-wrap; background: #f6f3ec; padding: 0.75rem; border-radius: 6px; min-height: 7rem; }
@@ -35,12 +57,18 @@
   </header>
   <main>
     <section id="intent">
-      <h2>Agent intent</h2>
-      <p class="actor">Actor: demo proposer</p>
-      <button id="sample" type="button">Run sample agent</button>
-      <button id="prepare" type="button" disabled>Prepare sample invoice</button>
-      <button id="send" type="button" disabled>Send proposal</button>
-      <pre id="intent-body"></pre>
+      <h2>1. AI Agent</h2>
+      <div class="logos" aria-label="AI agent companies">
+        <span class="logo logo-openai">OpenAI</span>
+        <span class="logo logo-anthropic">Anthropic</span>
+        <span class="logo logo-google" aria-label="Google"><span>G</span><span>o</span><span>o</span><span>g</span><span>l</span><span>e</span></span>
+        <span class="logo logo-microsoft"><span><i></i><i></i><i></i><i></i></span>Microsoft</span>
+        <span class="logo logo-cursor">Cursor</span>
+      </div>
+      <div class="request-row">
+        <pre id="intent-body"></pre>
+        <button id="request-toggle" type="button" hidden>View request</button>
+      </div>
     </section>
     <section id="gate">
       <h2>AgentGate status</h2>
@@ -128,10 +156,11 @@
 
     const frames = [
       {
-        active: "business",
-        label: "Starting state, before any proposal",
-        nextControl: "sample",
-        intent: "No proposal yet.",
+        active: "intent",
+        label: "AI Agent makes a request to the database.",
+        nextControl: "next",
+        intent: "Update invoice 482 payment terms to net 60.",
+        request: { invoice: 482, payment_terms: "net_60" },
         status: "No submission yet.",
         review: "Waiting for a submission.",
         business: before
@@ -230,7 +259,9 @@
     const review = document.querySelector("#review");
     const business = document.querySelector("#business-body");
     const stepLabel = document.querySelector("#step-label");
+    const requestToggle = document.querySelector("#request-toggle");
     let index = 0;
+    let showRequest = false;
 
     function show(node, value) {
       node.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
@@ -241,14 +272,18 @@
       document.querySelectorAll("main section").forEach((section) => {
         section.classList.toggle("active", section.id === frame.active);
       });
-      show(intent, frame.intent);
+      const hasRequest = Object.prototype.hasOwnProperty.call(frame, "request");
+      requestToggle.hidden = !hasRequest;
+      requestToggle.textContent = showRequest ? "View text" : "View request";
+      requestToggle.setAttribute("aria-pressed", String(showRequest && hasRequest));
+      show(intent, hasRequest && showRequest ? frame.request : frame.intent);
       show(status, frame.status);
       show(review, frame.review);
       show(business, frame.business);
       stepLabel.textContent = "Step " + (index + 1) + " of " + frames.length + ". " + frame.label;
       document.querySelector("#back").disabled = index === 0;
       document.querySelector("#next").disabled = index === frames.length - 1;
-      for (const id of ["sample", "show", "approve", "merge", "drift"]) {
+      for (const id of ["show", "approve", "merge", "drift"]) {
         document.querySelector("#" + id).disabled = frame.nextControl !== id;
       }
     }
@@ -260,7 +295,11 @@
 
     document.querySelector("#back").addEventListener("click", () => go(index - 1));
     document.querySelector("#next").addEventListener("click", () => go(index + 1));
-    for (const id of ["sample", "show", "approve", "merge", "drift"]) {
+    requestToggle.addEventListener("click", () => {
+      showRequest = !showRequest;
+      render();
+    });
+    for (const id of ["show", "approve", "merge", "drift"]) {
       document.querySelector("#" + id).addEventListener("click", () => {
         if (frames[index].nextControl === id) {
           go(index + 1);
