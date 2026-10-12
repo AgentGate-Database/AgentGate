@@ -9,7 +9,9 @@
     header { padding: 1.25rem 1.5rem 0.25rem; }
     h1 { font-size: 1.6rem; margin: 0; }
     p.lead { margin: 0.35rem 0 0; max-width: 46rem; color: #cfc6b8; }
-    main { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding: 1rem 1.5rem 2rem; }
+    main { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding: 1rem 1.5rem 1rem; }
+    .narration { margin: 0 1.5rem 1.75rem; padding: 0.95rem 1.1rem; background: #221f1b; border: 1px solid #3a342c; border-radius: 8px; line-height: 1.45; }
+    .narration .label { display: block; margin-bottom: 0.3rem; font-family: system-ui, sans-serif; font-size: 0.72rem; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; color: #b7aea0; }
     section { background: #221f1b; border: 1px solid #3a342c; border-radius: 8px; padding: 1rem 1.1rem; min-height: 16rem; }
     section.active { border-color: #f4f1ea; box-shadow: inset 0 0 0 2px #f4f1ea; }
     h2 { font-size: 1.05rem; margin: 0 0 0.75rem; }
@@ -46,7 +48,7 @@
 </head>
 <body>
   <header>
-    <h1>AgentGate</h1>
+    <h1>AgentGate - Step by Step Simulation</h1>
     <p class="lead">Postgres pull requests for AI agents.</p>
   </header>
   <main>
@@ -62,7 +64,7 @@
       <p class="request" id="intent-body"></p>
     </section>
     <section id="gate">
-      <h2>2. AgentGate status</h2>
+      <h2>2. AgentGate</h2>
       <table>
         <thead>
           <tr><th>Agent</th><th>Request</th><th>Status</th></tr>
@@ -71,7 +73,7 @@
       </table>
     </section>
     <section id="company">
-      <h2>3. Company dashboard</h2>
+      <h2>3. Human-in-the-Loop</h2>
       <table>
         <thead>
           <tr><th>Agent</th><th>Request</th><th>Status</th></tr>
@@ -80,7 +82,7 @@
       </table>
     </section>
     <section id="business">
-      <h2>4. Business data in Postgres</h2>
+      <h2>4. Postgres Database</h2>
       <table>
         <thead>
           <tr><th>Name</th><th>Date of birth</th><th>Email</th></tr>
@@ -89,6 +91,7 @@
       </table>
     </section>
   </main>
+  <p class="narration" id="narration" aria-live="polite"><span class="label">What’s happening</span><span id="narration-text"></span></p>
   <script>
     const beat = 2000;
     const seed = [
@@ -101,30 +104,35 @@
         agent: "OpenAI",
         text: "Update Maya Chen’s date of birth to 06/21/1995.",
         decision: "Approved",
+        written: "Postgres updates Maya Chen’s date of birth to 06/21/1995.",
         apply: (rows) => updateRow(rows, "Maya Chen", { date_of_birth: "06/21/1995" })
       },
       {
         agent: "Anthropic",
         text: "Add Avery Kim, born 08/03/1992.",
         decision: "Approved",
+        written: "Postgres adds Avery Kim as a new customer.",
         apply: (rows) => rows.push({ name: "Avery Kim", date_of_birth: "08/03/1992", email: "avery.kim@example.com", changed: true })
       },
       {
         agent: "Google",
         text: "Update Jordan Lee’s email to jordan@lee.dev.",
         decision: "Declined",
+        kept: "Jordan Lee’s email stays jordan.lee@example.com.",
         apply: null
       },
       {
         agent: "Microsoft",
         text: "Update Sam Patel’s date of birth to 04/17/1991.",
         decision: "Approved",
+        written: "Postgres updates Sam Patel’s date of birth to 04/17/1991.",
         apply: (rows) => updateRow(rows, "Sam Patel", { date_of_birth: "04/17/1991" })
       },
       {
         agent: "Cursor",
         text: "Add Riley Nguyen, born 12/28/1996.",
         decision: "Approved",
+        written: "Postgres adds Riley Nguyen as a new customer.",
         apply: (rows) => rows.push({ name: "Riley Nguyen", date_of_birth: "12/28/1996", email: "riley.nguyen@example.com", changed: true })
       }
     ];
@@ -133,6 +141,7 @@
     const gateBody = document.querySelector("#gate-body");
     const companyBody = document.querySelector("#company-body");
     const businessBody = document.querySelector("#business-body");
+    const narrationText = document.querySelector("#narration-text");
     let customers = [];
     let gateItems = [];
     let companyItems = [];
@@ -151,6 +160,10 @@
     function updateRow(rows, name, fields) {
       const row = rows.find((item) => item.name === name);
       Object.assign(row, fields, { changed: true });
+    }
+
+    function narrate(text) {
+      narrationText.textContent = text;
     }
 
     function highlight(id) {
@@ -205,21 +218,27 @@
     async function play(request) {
       highlight("intent");
       showAgent(request);
+      narrate(request.agent + " makes a request in plain language. Nothing is written to Postgres yet.");
       await sleep(beat);
 
       highlight("gate");
       gateItems.push({ agent: request.agent, text: request.text, status: "Pending review" });
       renderSubmissions();
+      narrate("AgentGate records the request and marks it pending review.");
       await sleep(beat);
 
       highlight("company");
       companyItems.push({ agent: request.agent, text: request.text, status: "Pending review" });
       renderSubmissions();
+      narrate("The same request appears in Human-in-the-Loop for a person to approve or decline.");
       await sleep(beat);
 
       gateItems[gateItems.length - 1].status = request.decision;
       companyItems[companyItems.length - 1].status = request.decision;
       renderSubmissions();
+      narrate(request.decision === "Approved"
+        ? "A reviewer approves the request. AgentGate and Human-in-the-Loop both show Approved."
+        : "A reviewer declines the request. " + request.kept);
       await sleep(beat);
 
       if (request.decision === "Approved") {
@@ -227,17 +246,23 @@
         customers.forEach((row) => { row.changed = false; });
         request.apply(customers);
         renderCustomers();
+        narrate(request.written);
         await sleep(beat);
       }
     }
 
     async function run() {
+      let first = true;
       while (true) {
+        if (!first) {
+          narrate("The example returns to the original customer rows and starts again.");
+          await sleep(beat);
+        }
+        first = false;
         reset();
         for (const request of requests) {
           await play(request);
         }
-        await sleep(beat);
       }
     }
 
