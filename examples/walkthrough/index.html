@@ -90,7 +90,7 @@
     </section>
   </main>
   <script>
-    const beat = 2800;
+    const beat = 2000;
     const seed = [
       { name: "Maya Chen", date_of_birth: "03/14/1990", email: "maya.chen@example.com" },
       { name: "Jordan Lee", date_of_birth: "11/02/1988", email: "jordan.lee@example.com" },
@@ -234,7 +234,6 @@
     async function run() {
       while (true) {
         reset();
-        await sleep(beat);
         for (const request of requests) {
           await play(request);
         }
