@@ -1,5 +1,7 @@
 # AgentGate
 
+<video src="media/AgentGate_Simulation.mp4" width="100%" controls playsinline></video>
+
 AgentGate is an open-source, self-hostable API for proposing, reviewing, approving, and merging changes to Postgres data. It is built for apps where an AI agent needs to change a record, and a human approves the exact change before it is written: support tools, ops copilots, and internal agents. A data pull request changes rows in the existing database. It does not open a GitHub pull request and it does not create a database branch. Merge applies the approved change atomically.
 
 AgentGate works with standard Postgres. It also works with Supabase as a Postgres host: install the private `agentgate` schema, use scoped database roles, and keep that schema out of exposed Data API schemas. No Supabase partnership is required to run it, and this project does not claim partner status.
@@ -9,7 +11,7 @@ Created and maintained by [Kirthi Narayanan](https://github.com/KirthiNarayanan)
 
 ## Simulation: AgentGate in Action
 
-The [walkthrough](https://agentgate-database.github.io/AgentGate/) plays four panels. An agent asks to update Maya Chen’s date of birth. AgentGate and the company dashboard show that request. The customer table changes only after a person approves it. A declined request leaves the row as it was.
+The [simulation](https://agentgate-database.github.io/AgentGate/) plays four panels. An agent asks to update Maya Chen’s date of birth. AgentGate and the company dashboard show that request. The customer table changes only after a person approves it. A declined request leaves the row as it was.
 
 The page is a fixed simulation. It does not call the API, start MCP, or read Postgres. The same file is [examples/walkthrough/index.html](examples/walkthrough/index.html).
 
