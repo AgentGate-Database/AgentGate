@@ -4,7 +4,7 @@ AgentGate governs writes that go through its API. It does not protect a database
 
 ## Reporting
 
-Report vulnerabilities privately to the maintainer, Kirthi Narayanan, at the contact published on the verified GitHub profile `<kirthi-github-username>`. Do not open a public issue for an unfixed vulnerability. There is no bug-bounty program.
+Report vulnerabilities privately to the maintainer, Kirthi Narayanan, at the contact published on the GitHub profile [KirthiNarayanan](https://github.com/KirthiNarayanan). Do not open a public issue for an unfixed vulnerability. There is no bug-bounty program.
 
 ## Credential handling
 

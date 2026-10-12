@@ -1,6 +1,6 @@
 # Contributing
 
-AgentGate is maintained by Kirthi Narayanan. There is not a separate review team yet. Open a change against the project repository once it is published under the AgentGate organization (`<agentgate-org>/agentgate`). Until those handles are confirmed, coordinate with the maintainer directly.
+AgentGate is maintained by Kirthi Narayanan. There is not a separate review team yet. Open a change against the project repository [AgentGate-Database/AgentGate](https://github.com/AgentGate-Database/AgentGate).
 
 ## Expectations
 
