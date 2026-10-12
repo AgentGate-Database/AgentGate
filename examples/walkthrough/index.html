@@ -6,8 +6,10 @@
   <title>AgentGate walkthrough</title>
   <style>
     body { font-family: "Iowan Old Style", Palatino, Georgia, serif; margin: 0; background: #141210; color: #f4f1ea; color-scheme: dark; }
-    header { padding: 1.25rem 1.5rem 0.25rem; }
+    header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1.25rem 1.5rem 0.25rem; }
     h1 { font-size: 1.6rem; margin: 0; }
+    button.transport { flex: none; margin-top: 0.15rem; font-family: system-ui, sans-serif; font-size: 0.85rem; font-weight: 650; color: #f4f1ea; background: #2c2823; border: 1px solid #f4f1ea; border-radius: 999px; padding: 0.4rem 0.95rem; cursor: pointer; }
+    button.transport:hover { background: #3a342c; }
     p.lead { margin: 0.35rem 0 0; max-width: 46rem; color: #cfc6b8; }
     main { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding: 1rem 1.5rem 1rem; }
     .narration { margin: 0 1.5rem 1.75rem; padding: 0.95rem 1.1rem; background: #221f1b; border: 1px solid #3a342c; border-radius: 8px; line-height: 1.45; }
@@ -48,8 +50,11 @@
 </head>
 <body>
   <header>
-    <h1>AgentGate - Step by Step Simulation</h1>
-    <p class="lead">Postgres pull requests for AI agents.</p>
+    <div>
+      <h1>AgentGate - Step by Step Simulation</h1>
+      <p class="lead">Postgres pull requests for AI agents.</p>
+    </div>
+    <button type="button" class="transport" id="transport" aria-pressed="false">Pause</button>
   </header>
   <main>
     <section id="intent">
@@ -142,12 +147,59 @@
     const companyBody = document.querySelector("#company-body");
     const businessBody = document.querySelector("#business-body");
     const narrationText = document.querySelector("#narration-text");
+    const transport = document.querySelector("#transport");
     let customers = [];
     let gateItems = [];
     let companyItems = [];
+    let paused = false;
+    const pauseListeners = new Set();
+
+    function watchPause(listener) {
+      pauseListeners.add(listener);
+      return () => pauseListeners.delete(listener);
+    }
+
+    function setPaused(next) {
+      paused = next;
+      transport.textContent = paused ? "Play" : "Pause";
+      transport.setAttribute("aria-pressed", String(paused));
+      pauseListeners.forEach((listener) => listener());
+    }
 
     function sleep(ms) {
-      return new Promise((resolve) => setTimeout(resolve, ms));
+      return new Promise((resolve) => {
+        let remaining = ms;
+        let timer = null;
+        let started = 0;
+        const unwatch = watchPause(sync);
+
+        function finish() {
+          if (timer) clearTimeout(timer);
+          unwatch();
+          resolve();
+        }
+
+        function start() {
+          started = performance.now();
+          timer = setTimeout(finish, remaining);
+        }
+
+        function sync() {
+          if (paused) {
+            if (!timer) return;
+            clearTimeout(timer);
+            timer = null;
+            remaining -= performance.now() - started;
+            if (remaining < 0) remaining = 0;
+            return;
+          }
+          if (timer) return;
+          if (remaining <= 0) finish();
+          else start();
+        }
+
+        sync();
+      });
     }
 
     function escapeHtml(value) {
@@ -266,6 +318,7 @@
       }
     }
 
+    transport.addEventListener("click", () => setPaused(!paused));
     reset();
     run();
   </script>
